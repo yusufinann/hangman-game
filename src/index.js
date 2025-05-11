@@ -1,2 +1,2 @@
-import HangMan from "./pages/index.jsx";
-export {HangMan}
+import Hangman from "./pages/index.jsx";
+export {Hangman}
