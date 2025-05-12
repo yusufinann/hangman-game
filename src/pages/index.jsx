@@ -1,18 +1,26 @@
 import { useState, useEffect, useMemo } from 'react';
 import {
   Box, CircularProgress, Alert,
-  Typography
+  Typography,
+  Paper,
+  List,
+  ListItem,
+  ListItemText,
+  ListItemIcon,
+  Container,
+  Divider,
 } from '@mui/material';
-
+import PersonIcon from '@mui/icons-material/Person';
 import { useGameNotifications } from '../hooks/useGameNotifications';
 import { useTurnTimer } from '../hooks/useTurnTimer';
 import { useWebSocketHandler } from '../hooks/useWebSocketHandler';
-
+import PeopleIcon from '@mui/icons-material/People';
+import HourglassEmptyIcon from '@mui/icons-material/HourglassEmpty';
 import { GameContainer } from './components/StyledComponents';
 import GameControls from './components/GameControls';
 import HostSetupModal from './components/HostSetupModal';
 import GamePlayArea from './components/GamePlayArea';
-import PlayerList from './components/PlayerList';
+import PlayerList from './components/PlayerList'; 
 import GameEndScreen from './components/GameEndScreen';
 import CountdownScreen from './components/CountdownScreen';
 import NotificationArea from './components/NotificationArea';
@@ -93,6 +101,10 @@ const Hangman = ({ lobbyCode, lobbyInfo, members, socket, user }) => {
       addNotification("Lütfen bir kategori seçin.", "error");
       return;
     }
+    if (!members || members.length < 1) { 
+        addNotification("Oyunu başlatmak için en az 1 katılımcı oyuncu gereklidir.", "warning");
+        return;
+    }
     socket.send(JSON.stringify({
       type: "HANGMAN_START", lobbyCode, category
     }));
@@ -157,7 +169,6 @@ const Hangman = ({ lobbyCode, lobbyInfo, members, socket, user }) => {
   const handleCloseNotification = (id) => {
     setNotifications(prev => prev.filter(notif => notif.id !== id));
   };
-
   return (
     <>
       <GameContainer sx={{ 
@@ -168,7 +179,6 @@ const Hangman = ({ lobbyCode, lobbyInfo, members, socket, user }) => {
         width: '100%', 
         overflow: 'hidden'
       }}>
-        {/* <LobbyInfoBar lobbyInfo={lobbyInfo} lobbyCode={lobbyCode} lobbyCreatorName={lobbyCreatorName} /> */}
               
         <HostSetupModal
           open={showHostSetupModal && isHost}
@@ -187,7 +197,6 @@ const Hangman = ({ lobbyCode, lobbyInfo, members, socket, user }) => {
               alignItems: 'stretch',
               overflow: 'auto',
               flexDirection: { xs: 'column', md: 'row' }, 
-             
             }}
           >
             <Box sx={{ 
@@ -237,15 +246,87 @@ const Hangman = ({ lobbyCode, lobbyInfo, members, socket, user }) => {
             sharedGameState={sharedGameState}/>
         )}
         
-        {gamePhase === 'waiting' && !isHost && !sharedGameState.gameStarted && (
-          <Alert 
-            severity="info" 
-            variant="standard" 
-            sx={{ mt: 4, p: 3, justifyContent: 'center', fontSize: '1.2rem' }}
-          >
-            Hostun oyunu başlatması bekleniyor... 
-          </Alert>
+     {gamePhase === 'waiting' && !sharedGameState.gameStarted && (
+  <Container maxWidth="md" sx={{ mt: 4 }}>
+    {isHost ? (
+      <Paper elevation={3} sx={{ p: 3, textAlign: 'center' }}>
+        <Typography variant="h4" component="h1" gutterBottom sx={{ fontWeight: 'bold', color: 'primary.main' }}>
+          Oyun Lobisi (Host)
+        </Typography>
+        <Typography variant="subtitle1" color="text.secondary" gutterBottom>
+          Oyuncuların katılmasını bekliyorsun. Hazır olduğunda oyunu başlatabilirsin!
+        </Typography>
+
+        <Divider sx={{ my: 3 }} />
+
+        <Typography variant="h6" gutterBottom>
+          <PeopleIcon sx={{ verticalAlign: 'middle', mr: 1 }} />
+          Katılan Oyuncular ({members ? members.length : 0}) 
+        </Typography>
+        {members && members.length > 0 ? ( 
+          <List dense sx={{ mb: 3, maxHeight: 200, overflow: 'auto', border: '1px solid', borderColor: 'divider', borderRadius: 1 }}>
+            {members.map((member) => ( 
+              <ListItem key={member.id}> 
+                <ListItemIcon>
+                  <PersonIcon color="action" /> 
+                </ListItemIcon>
+                <ListItemText primary={member.name || member.username || `Oyuncu ${member.id.substring(0,4)}`} /> 
+              </ListItem>
+            ))}
+          </List>
+        ) : (
+          <Typography color="text.secondary" sx={{ my: 2 }}>
+            Henüz katılan oyuncu yok.
+          </Typography>
         )}
+
+        <Typography variant="caption" display="block" sx={{mt: 1}}>
+            {(!members || members.filter(m => m.id !== user.id).length < 1) && "Oyunu başlatmak için sizden başka en az 1 oyuncu daha gereklidir."}
+        </Typography>
+      </Paper>
+    ) : (
+      <Paper elevation={3} sx={{ p: 4, textAlign: 'center' }}>
+        <HourglassEmptyIcon sx={{ fontSize: 60, color: 'primary.main', mb: 2 }} />
+        <Typography variant="h5" component="h2" gutterBottom sx={{ fontWeight: 'medium' }}>
+          Lobiye Hoş Geldin!
+        </Typography>
+        <Typography variant="body1" color="text.secondary" sx={{ mb: 3 }}>
+          Host'un ({lobbyCreatorName}) oyunu başlatması bekleniyor... Lütfen sabırla bekle.
+        </Typography>
+        
+        <CircularProgress sx={{ mb: 3 }} />
+
+        <Typography variant="h6" gutterBottom>
+          <PeopleIcon sx={{ verticalAlign: 'middle', mr: 1 }} />
+          Katılan Oyuncular ({members ? members.length : 0}) 
+        </Typography>
+        {members && members.length > 0 ? ( 
+          <List dense sx={{ mb: 2, maxHeight: 150, overflow: 'auto', width: '80%', margin: '0 auto', border: '1px solid', borderColor: 'divider', borderRadius: 1 }}>
+            {members.map((member) => ( 
+              <ListItem key={member.id}> 
+                <ListItemText 
+                  primary={`${member.name || member.username}${member.id === user.id ? ' (Siz)' : ''}${member.id === lobbyInfo.createdBy ? ' (Host)' : ''}`} 
+                  sx={{ textAlign: 'center' }} 
+                />
+              </ListItem>
+            ))}
+          </List>
+        ) : (
+          <Typography color="text.secondary" sx={{ my: 2 }}>
+            Henüz katılan başka oyuncu yok.
+          </Typography>
+        )}
+        <Alert 
+            severity="info" 
+            variant="outlined" 
+            sx={{ mt: 4, p: 2, justifyContent: 'center', fontSize: '1rem' }}
+        >
+            Oyun yakında başlayacak!
+        </Alert>
+      </Paper>
+    )}
+  </Container>
+)}
         
         {gamePhase === 'ended' && (!sharedGameState.rankings || sharedGameState.rankings.length === 0) && !isHost && (
           <Alert 
