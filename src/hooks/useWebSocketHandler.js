@@ -14,6 +14,7 @@ export const useWebSocketHandler = ({
   gamePhase,
   members,
   clearAllNotifications,
+  playSoundCallback, 
 }) => {
   useEffect(() => {
     if (!socket) return;
@@ -29,6 +30,13 @@ export const useWebSocketHandler = ({
         case "HANGMAN_INFO":
           addNotification(data.message, "info");
           break;
+
+        case "HANGMAN_COUNTDOWN":
+          setGamePhase("countdown");
+          setCountdown(data.countdown);
+          playSoundCallback && playSoundCallback('countdown');
+          break;
+
         case "HANGMAN_RECONNECTED":
         case "HANGMAN_JOINED_SUCCESS":
         case "HANGMAN_PLAYER_JOINED":
@@ -49,6 +57,7 @@ export const useWebSocketHandler = ({
             setGamePhase("playing");
             setCountdown(null);
             clearAllNotifications();
+            playSoundCallback && playSoundCallback('gameStart');
           }
           if (data.type === "HANGMAN_PLAYER_ELIMINATED") {
             addNotification(
@@ -59,12 +68,19 @@ export const useWebSocketHandler = ({
               }`,
               "warning"
             );
+            playSoundCallback && playSoundCallback('playerEliminated');
           }
           if (data.type === "HANGMAN_PLAYER_TIMEOUT") {
             addNotification(
               `${data.userName} süresi dolduğu için sırasını kaybetti.`,
               "warning"
             );
+            playSoundCallback && playSoundCallback('playerTimeout');
+          }
+          if (data.type === "HANGMAN_TURN_CHANGE") {
+            if (data.sharedGameState?.currentPlayerId === user?.id) {
+              playSoundCallback && playSoundCallback('turnChange');
+            }
           }
 
           if (data.sharedGameState) {
@@ -96,11 +112,6 @@ export const useWebSocketHandler = ({
           }));
           break;
 
-        case "HANGMAN_COUNTDOWN":
-          setGamePhase("countdown");
-          setCountdown(data.countdown);
-          break;
-
         case "HANGMAN_MY_GUESS_RESULT":
           if (data.playerSpecificGameState) {
             setMyPlayerSpecificState((prev) => ({
@@ -119,6 +130,7 @@ export const useWebSocketHandler = ({
             data.correct ? "success" : "error",
             2500
           );
+          playSoundCallback && playSoundCallback(data.correct ? 'guessCorrect' : 'guessIncorrect');
           break;
 
         case "HANGMAN_WORD_GUESS_INCORRECT":
@@ -132,11 +144,27 @@ export const useWebSocketHandler = ({
           break;
 
         case "HANGMAN_GAME_OVER_WINNER":
+          playSoundCallback && playSoundCallback('gameOverWin');
+          addNotification(data.message, "info", 10000);
+          setGamePhase("ended");
+          if (data.sharedGameState) {
+            setSharedGameState((prev) => ({
+              ...prev,
+              ...data.sharedGameState,
+              gameEnded: true,
+              gameStarted: false,
+              word: data.word,
+            }));
+          }
+          setMyPlayerSpecificState((prev) => ({ ...prev, isMyTurn: false }));
+          break;
+
         case "HANGMAN_WORD_REVEALED_GAME_OVER":
         case "HANGMAN_GAME_OVER_NO_WINNERS":
         case "HANGMAN_GAME_OVER_HOST_ENDED":
+          playSoundCallback && playSoundCallback('gameOverLose');
           addNotification(data.message, "info", 10000);
-          setGamePhase("ended"); // This will trigger the modal logic in Hangman component
+          setGamePhase("ended");
           if (data.sharedGameState) {
             setSharedGameState((prev) => ({
               ...prev,
@@ -168,7 +196,6 @@ export const useWebSocketHandler = ({
             }));
           }
           if (user && data.disconnectedUserId !== user.id) {
-            // Başkası ayrıldıysa bildirim
             addNotification(
               data.message ||
                 `${data.userName || "Bir oyuncu"} ayrıldı/bağlantısı kesildi.`,
@@ -184,7 +211,6 @@ export const useWebSocketHandler = ({
               "error"
             );
           }
-
           break;
 
         default:
@@ -208,6 +234,7 @@ export const useWebSocketHandler = ({
     gamePhase,
     members,
     clearAllNotifications,
+    playSoundCallback, 
   ]);
 
   useEffect(() => {

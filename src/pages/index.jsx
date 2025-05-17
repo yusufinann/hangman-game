@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo} from "react";
 import {
   Box,
   CircularProgress,
@@ -27,6 +27,7 @@ import PlayerList from "./components/PlayerList";
 import GameEndScreen from "./components/GameEndScreen";
 import CountdownScreen from "./components/CountdownScreen";
 import NotificationArea from "./components/NotificationArea";
+import useHangmanSound from "../hooks/useHangmanSound";
 
 const Hangman = ({ lobbyCode, lobbyInfo, members, socket, user }) => {
   const [isHost, setIsHost] = useState(false);
@@ -35,6 +36,8 @@ const Hangman = ({ lobbyCode, lobbyInfo, members, socket, user }) => {
     category: "",
     availableCategories: [],
   });
+   const [hangmanSoundEnabled, setHangmanSoundEnabled] = useState(true); 
+  const { playSound } = useHangmanSound(hangmanSoundEnabled); 
   const [showHostSetupModal, setShowHostSetupModal] = useState(false);
   const [countdown, setCountdown] = useState(null);
   const [showGameEndModal, setShowGameEndModal] = useState(false);
@@ -85,6 +88,7 @@ const Hangman = ({ lobbyCode, lobbyInfo, members, socket, user }) => {
     gamePhase,
     members,
     clearAllNotifications,
+     playSoundCallback: playSound,
   });
 
   const turnTimeLeft = useTurnTimer(
