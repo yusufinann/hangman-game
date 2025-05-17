@@ -119,7 +119,7 @@ const PlayerList = ({ members, sharedGameState, userId }) => {
             );
           }
           
-          const displayName = playerStatus.userName || member.username;
+          const displayName = playerStatus.userName || member.username || 'undefined player';
           const initial = displayName.charAt(0).toUpperCase();
           
           // Avatar with badge for host
