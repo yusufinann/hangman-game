@@ -28,21 +28,20 @@ import GameEndScreen from "./components/GameEndScreen";
 import CountdownScreen from "./components/CountdownScreen";
 import NotificationArea from "./components/NotificationArea";
 import useHangmanSound from "../hooks/useHangmanSound";
+import VolumeButton from "./components/VolumeButton";
 
-const Hangman = ({ lobbyCode, lobbyInfo, members, socket, user }) => {
+const Hangman = ({ lobbyCode, lobbyInfo, members, socket, user,hangmanSoundEnabled,toggleSound }) => {
   const [isHost, setIsHost] = useState(false);
   const [gamePhase, setGamePhase] = useState("loading");
   const [hostSetupData, setHostSetupData] = useState({
     category: "",
     availableCategories: [],
   });
-   const [hangmanSoundEnabled, setHangmanSoundEnabled] = useState(true); 
   const { playSound } = useHangmanSound(hangmanSoundEnabled); 
   const [showHostSetupModal, setShowHostSetupModal] = useState(false);
   const [countdown, setCountdown] = useState(null);
   const [showGameEndModal, setShowGameEndModal] = useState(false);
   const [hasAcknowledgedGameEnd, setHasAcknowledgedGameEnd] = useState(false);
-
   const [sharedGameState, setSharedGameState] = useState({
     maskedWord: "",
     category: "",
@@ -343,6 +342,7 @@ const Hangman = ({ lobbyCode, lobbyInfo, members, socket, user }) => {
 
   return (
     <>
+    <VolumeButton toggleSound={toggleSound} soundEnabled={hangmanSoundEnabled}/>
       <GameContainer
         sx={{
           display: "flex",
