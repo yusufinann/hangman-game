@@ -11,7 +11,7 @@ import {
   CardContent,
   LinearProgress,
   Stack,
-  Button, // Added Button
+  Button, 
 } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import EmojiEventsIcon from '@mui/icons-material/EmojiEvents';
@@ -24,7 +24,7 @@ import SentimentVeryDissatisfiedIcon from '@mui/icons-material/SentimentVeryDiss
 
 const avatarColors = ['#FFC107', '#FF5722', '#9C27B0', '#3F51B5', '#2196F3', '#009688'];
 
-const GameEndScreen = ({ sharedGameState, onClose }) => { // Added onClose prop
+const GameEndScreen = ({ sharedGameState, onClose,t }) => { 
   const theme = useTheme();
 
   const getStatusIcon = (player) => {
@@ -53,13 +53,13 @@ const GameEndScreen = ({ sharedGameState, onClose }) => { // Added onClose prop
           textAlign: 'center',
           borderRadius: 2,
           backgroundImage: 'linear-gradient(to bottom, rgba(255,255,255,0.15), rgba(0,0,0,0.05))',
-          maxHeight: '80vh', // Ensure content is scrollable if it exceeds viewport height in modal
-          overflowY: 'auto', // Ensure vertical scroll
+          maxHeight: '80vh', 
+          overflowY: 'auto', 
           display: 'flex',
           flexDirection: 'column'
         }}
       >
-        <Box sx={{ flexGrow: 1, overflowY: 'auto', paddingRight: '4px' }}> {/* Inner scroll for content if needed */}
+        <Box sx={{ flexGrow: 1, overflowY: 'auto', paddingRight: '4px' }}> 
           <Box sx={{
             position: 'relative',
             mb: 2,
@@ -97,7 +97,7 @@ const GameEndScreen = ({ sharedGameState, onClose }) => { // Added onClose prop
                 mb: 1
               }}
             >
-              OYUN SONA ERDİ!
+              {t("Game Over!")}
             </Typography>
 
             <Box sx={{ display: 'flex', justifyContent: 'center', mb: 1 }}>
@@ -119,7 +119,7 @@ const GameEndScreen = ({ sharedGameState, onClose }) => { // Added onClose prop
             </Box>
 
             <Typography variant="body2" sx={{ opacity: 0.9 }}>
-              Doğru Kelime
+              {t("Correct Word")}
             </Typography>
           </Box>
 
@@ -135,7 +135,7 @@ const GameEndScreen = ({ sharedGameState, onClose }) => { // Added onClose prop
             }}
           >
             <EmojiEventsIcon sx={{ fontSize: 18 }} />
-            Sıralama
+            {t("Rank")}
           </Typography>
 
           <Box sx={{ maxHeight: 'calc(80vh - 250px)', overflowY: 'auto', pr: 1, mr: -1 }}> {/* Adjusted maxHeight */}
@@ -291,7 +291,7 @@ const GameEndScreen = ({ sharedGameState, onClose }) => { // Added onClose prop
         </Box>
         <Box sx={{ mt: 2, p: 1, borderTop: `1px solid ${theme.palette.divider}` }}>
           <Button variant="contained" onClick={onClose} fullWidth>
-            Lobiye Dön
+            {t( "backLobby")}
           </Button>
         </Box>
       </Paper>

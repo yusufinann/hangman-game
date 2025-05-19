@@ -2,7 +2,7 @@ import React from 'react';
 import { Box, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 
-const CountdownScreen = ({ countdown }) => {
+const CountdownScreen = ({ countdown,t }) => {
   const theme = useTheme();
   return (
     <Box
@@ -22,7 +22,7 @@ const CountdownScreen = ({ countdown }) => {
         textAlign: 'center'
       }}
     >
-      <Typography variant="h3" gutterBottom sx={{ fontWeight: 300 }}>Oyun Başlıyor!</Typography>
+      <Typography variant="h3" gutterBottom sx={{ fontWeight: 300 }}>{t("Game on")}!</Typography>
       <Typography variant="h1" component="div" sx={{ fontWeight: 'bold', fontSize: { xs: '8rem', sm: '12rem', md: '15rem' }, lineHeight: 1 }}>
         {countdown}
       </Typography>

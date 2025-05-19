@@ -1,7 +1,7 @@
 import React from 'react';
 import { Box, Button, Typography } from '@mui/material';
 
-const AlphabetGrid = ({ onGuess, disabledLetters = [], isMyTurn }) => {
+const AlphabetGrid = ({ onGuess, disabledLetters = [], isMyTurn,t }) => {
   const alphabet = "ABCÇDEFGHIİJKLMNOÖPRSŞTUÜVYZ".split('');
   
   return (
@@ -16,7 +16,7 @@ const AlphabetGrid = ({ onGuess, disabledLetters = [], isMyTurn }) => {
       }}
     >
       <Typography variant="subtitle2" sx={{ mb: 1, textAlign: 'center' }}>
-        Bir harf seçin
+        {t("ChooseLetter")}
       </Typography>
       
       <Box 

@@ -30,7 +30,7 @@ import NotificationArea from "./components/NotificationArea";
 import useHangmanSound from "../hooks/useHangmanSound";
 import VolumeButton from "./components/VolumeButton";
 
-const Hangman = ({ lobbyCode, lobbyInfo, members, socket, user,hangmanSoundEnabled,toggleSound }) => {
+const Hangman = ({ lobbyCode, lobbyInfo, members, socket, user,hangmanSoundEnabled,toggleSound,t }) => {
   const [isHost, setIsHost] = useState(false);
   const [gamePhase, setGamePhase] = useState("loading");
   const [hostSetupData, setHostSetupData] = useState({
@@ -238,7 +238,7 @@ const Hangman = ({ lobbyCode, lobbyInfo, members, socket, user,hangmanSoundEnabl
       >
         <CircularProgress size={50} />
         <Typography variant="h6" sx={{ ml: 2 }}>
-          Oyun yükleniyor...
+          {t("Game Loading...")}
         </Typography>
       </Box>
     );
@@ -246,8 +246,7 @@ const Hangman = ({ lobbyCode, lobbyInfo, members, socket, user,hangmanSoundEnabl
   if (gamePhase === "error") {
     return (
       <Alert severity="error" sx={{ m: 3, p: 2 }}>
-        Oyun yüklenirken bir sorun oluştu. Lütfen sayfayı yenileyin veya daha
-        sonra tekrar deneyin.
+       {t("hangmanLoadingErrorMessage")}
       </Alert>
     );
   }
@@ -342,7 +341,7 @@ const Hangman = ({ lobbyCode, lobbyInfo, members, socket, user,hangmanSoundEnabl
 
   return (
     <>
-    <VolumeButton toggleSound={toggleSound} soundEnabled={hangmanSoundEnabled}/>
+    <VolumeButton toggleSound={toggleSound} soundEnabled={hangmanSoundEnabled} t={t}/>
       <GameContainer
         sx={{
           display: "flex",
@@ -359,6 +358,7 @@ const Hangman = ({ lobbyCode, lobbyInfo, members, socket, user,hangmanSoundEnabl
           hostSetupData={hostSetupData}
           onHostSetupChange={handleHostSetupChange}
           onStartGame={handleStartGame}
+          t={t}
         />
 
         {gamePhase === "playing" ? (
@@ -394,6 +394,7 @@ const Hangman = ({ lobbyCode, lobbyInfo, members, socket, user,hangmanSoundEnabl
                 gamePhase={gamePhase}
                 onOpenHostSetup={handleOpenHostSetup}
                 onEndGameByHost={handleEndGameByHost}
+                t={t}
               />
             </Box>
 
@@ -407,6 +408,7 @@ const Hangman = ({ lobbyCode, lobbyInfo, members, socket, user,hangmanSoundEnabl
                 members={members}
                 sharedGameState={sharedGameState}
                 userId={user.id}
+                t={t}
               />
             </Box>
           </Box>
@@ -418,169 +420,171 @@ const Hangman = ({ lobbyCode, lobbyInfo, members, socket, user,hangmanSoundEnabl
               gamePhase={gamePhase}
               onOpenHostSetup={handleOpenHostSetup}
               onEndGameByHost={handleEndGameByHost}
+              t={t}
             />
           )
         )}
 
         {shouldShowWaitingScreen && (
-          <Container
-            maxWidth="md"
-            sx={{ mt: 4, flexGrow: 1, overflowY: "auto" }}
+    <Container
+      maxWidth="md"
+      sx={{ mt: 4, flexGrow: 1, overflowY: "auto" }}
+    >
+      {isHost ? (
+        <Paper elevation={3} sx={{ p: 3, textAlign: "center" }}>
+          <Typography
+            variant="h4"
+            component="h1"
+            gutterBottom
+            sx={{ fontWeight: "bold", color: "primary.main" }}
           >
-            {isHost ? (
-              <Paper elevation={3} sx={{ p: 3, textAlign: "center" }}>
-                <Typography
-                  variant="h4"
-                  component="h1"
-                  gutterBottom
-                  sx={{ fontWeight: "bold", color: "primary.main" }}
-                >
-                  {sharedGameState.gameEnded
-                    ? "Oyun Bitti - Lobi (Host)"
-                    : "Oyun Lobisi (Host)"}
-                </Typography>
-                <Typography
-                  variant="subtitle1"
-                  color="text.secondary"
-                  gutterBottom
-                >
-                  {sharedGameState.gameEnded
-                    ? "Yeni bir oyun başlatabilirsin."
-                    : "Oyuncuların katılmasını bekliyorsun. Hazır olduğunda oyunu başlatabilirsin!"}
-                </Typography>
+            {sharedGameState.gameEnded
+              ? t("titleGameOver")  
+              : t("titleWaiting")} 
+          </Typography>
+          <Typography
+            variant="subtitle1"
+            color="text.secondary"
+            gutterBottom
+          >
+            {sharedGameState.gameEnded
+              ? t("descriptionCanStartNew")
+              : t("descriptionWaitingForPlayers")} 
+          </Typography>
 
-                <Divider sx={{ my: 3 }} />
+          <Divider sx={{ my: 3 }} />
 
-                <Typography variant="h6" gutterBottom>
-                  <PeopleIcon sx={{ verticalAlign: "middle", mr: 1 }} />
-                  Katılan Oyuncular ({members ? members.length : 0})
-                </Typography>
-                {members && members.length > 0 ? (
-                  <List
-                    dense
-                    sx={{
-                      mb: 3,
-                      maxHeight: 200,
-                      overflow: "auto",
-                      border: "1px solid",
-                      borderColor: "divider",
-                      borderRadius: 1,
-                    }}
-                  >
-                    {members.map((member) => (
-                      <ListItem key={member.id}>
-                        <ListItemIcon>
-                          <PersonIcon color="action" />
-                        </ListItemIcon>
-                        <ListItemText
-                          primary={
-                            member.name ||
-                            member.username ||
-                            `Oyuncu ${member.id.substring(0, 4)}`
-                          }
-                        />
-                      </ListItem>
-                    ))}
-                  </List>
-                ) : (
-                  <Typography color="text.secondary" sx={{ my: 2 }}>
-                    Henüz katılan oyuncu yok.
-                  </Typography>
-                )}
-                <Typography variant="caption" display="block" sx={{ mt: 1 }}>
-                  {(!members ||
-                    members.filter((m) => m.id !== user.id).length < 1) &&
-                    !sharedGameState.gameEnded &&
-                    "Oyunu başlatmak için sizden başka en az 1 oyuncu daha gereklidir."}
-                </Typography>
-              </Paper>
-            ) : (
-              <Paper elevation={3} sx={{ p: 4, textAlign: "center" }}>
-                {!sharedGameState.gameEnded && (
-                  <HourglassEmptyIcon
-                    sx={{ fontSize: 60, color: "primary.main", mb: 2 }}
+          <Typography variant="h6" gutterBottom>
+            <PeopleIcon sx={{ verticalAlign: "middle", mr: 1 }} />
+            {t("Joined Players")} ({members ? members.length : 0})
+          </Typography>
+          {members && members.length > 0 ? (
+            <List
+              dense
+              sx={{
+                mb: 3,
+                maxHeight: 200,
+                overflow: "auto",
+                border: "1px solid",
+                borderColor: "divider",
+                borderRadius: 1,
+              }}
+            >
+              {members.map((member) => (
+                <ListItem key={member.id}>
+                  <ListItemIcon>
+                    <PersonIcon color="action" />
+                  </ListItemIcon>
+                  <ListItemText
+                    primary={
+                      member.name ||
+                      member.username ||
+                      `${t('defaultNamePrefix')} ${member.id.substring(0, 4)}` // "Player Xyz"
+                    }
                   />
-                )}
-                <Typography
-                  variant="h5"
-                  component="h2"
-                  gutterBottom
-                  sx={{ fontWeight: "medium" }}
-                >
-                  {sharedGameState.gameEnded
-                    ? "Oyun Bitti - Bekleme Ekranı"
-                    : "Lobiye Hoş Geldin!"}
-                </Typography>
-                <Typography
-                  variant="body1"
-                  color="text.secondary"
-                  sx={{ mb: 3 }}
-                >
-                  Host'un ({lobbyCreatorName}){" "}
-                  {sharedGameState.gameEnded
-                    ? "yeni bir oyun başlatması"
-                    : "oyunu başlatması"}{" "}
-                  bekleniyor... Lütfen sabırla bekle.
-                </Typography>
+                </ListItem>
+              ))}
+            </List>
+          ) : (
+            <Typography color="text.secondary" sx={{ my: 2 }}>
+              {t("hangmanNoPlayers")}
+            </Typography>
+          )}
+          <Typography variant="caption" display="block" sx={{ mt: 1 }}>
+            {(!members ||
+              members.filter((m) => m.id !== user.id).length < 1) &&
+              !sharedGameState.gameEnded &&
+              t("hangmanStartWarning")}
+          </Typography>
+        </Paper>
+      ) : (
+        <Paper elevation={3} sx={{ p: 4, textAlign: "center" }}>
+          {!sharedGameState.gameEnded && (
+            <HourglassEmptyIcon
+              sx={{ fontSize: 60, color: "primary.main", mb: 2 }}
+            />
+          )}
+          <Typography
+            variant="h5"
+            component="h2"
+            gutterBottom
+            sx={{ fontWeight: "medium" }}
+          >
+            {sharedGameState.gameEnded
+              ? t("Game Over - Waiting Screen")
+              : t("Welcome to Lobby!")}
+          </Typography>
+          <Typography
+            variant="body1"
+            color="text.secondary"
+            sx={{ mb: 3 }}
+          >
+            {t('waitingForHost', {
+              hostName: lobbyCreatorName,
+              action: sharedGameState.gameEnded
+                ? t('startNewGame')
+                : t('startGame'),
+            })}
+          </Typography>
 
-                {!sharedGameState.gameEnded && (
-                  <CircularProgress sx={{ mb: 3 }} />
-                )}
+          {!sharedGameState.gameEnded && (
+            <CircularProgress sx={{ mb: 3 }} />
+          )}
 
-                <Typography variant="h6" gutterBottom>
-                  <PeopleIcon sx={{ verticalAlign: "middle", mr: 1 }} />
-                  Katılan Oyuncular ({members ? members.length : 0})
-                </Typography>
-                {members && members.length > 0 ? (
-                  <List
-                    dense
-                    sx={{
-                      mb: 2,
-                      maxHeight: 150,
-                      overflow: "auto",
-                      width: "80%",
-                      margin: "0 auto",
-                      border: "1px solid",
-                      borderColor: "divider",
-                      borderRadius: 1,
-                    }}
-                  >
-                    {members.map((member) => (
-                      <ListItem key={member.id}>
-                        <ListItemText
-                          primary={`${member.name || member.username}${
-                            member.id === user.id ? " (Siz)" : ""
-                          }${
-                            member.id === lobbyInfo.createdBy ? " (Host)" : ""
-                          }`}
-                          sx={{ textAlign: "center" }}
-                        />
-                      </ListItem>
-                    ))}
-                  </List>
-                ) : (
-                  <Typography color="text.secondary" sx={{ my: 2 }}>
-                    Henüz katılan başka oyuncu yok.
-                  </Typography>
-                )}
-                <Alert
-                  severity="info"
-                  variant="outlined"
-                  sx={{
-                    mt: 4,
-                    p: 2,
-                    justifyContent: "center",
-                    fontSize: "1rem",
-                  }}
-                >
-                  {sharedGameState.gameEnded
-                    ? "Host yeni bir oyun başlatabilir."
-                    : "Oyun yakında başlayacak!"}
-                </Alert>
-              </Paper>
-            )}
-          </Container>
-        )}
+          <Typography variant="h6" gutterBottom>
+            <PeopleIcon sx={{ verticalAlign: "middle", mr: 1 }} />
+            {t("Joined Players")} ({members ? members.length : 0})
+          </Typography>
+          {members && members.length > 0 ? (
+            <List
+              dense
+              sx={{
+                mb: 2,
+                maxHeight: 150,
+                overflow: "auto",
+                width: "80%",
+                margin: "0 auto",
+                border: "1px solid",
+                borderColor: "divider",
+                borderRadius: 1,
+              }}
+            >
+              {members.map((member) => (
+                <ListItem key={member.id}>
+                  <ListItemText
+                    primary={`${member.name || member.username || t('player.defaultNamePrefixShort')}${ // Using a shorter default or combining
+                      member.id === user.id ? t('player.indicatorYouSuffix') : "" // " (You)"
+                    }${
+                      member.id === lobbyInfo.createdBy ? t('player.indicatorHostSuffix') : "" // " (Host)"
+                    }`}
+                    sx={{ textAlign: "center" }}
+                  />
+                </ListItem>
+              ))}
+            </List>
+          ) : (
+            <Typography color="text.secondary" sx={{ my: 2 }}>
+              {t("NoJoinedPlayer")}
+            </Typography>
+          )}
+          <Alert
+            severity="info"
+            variant="outlined"
+            sx={{
+              mt: 4,
+              p: 2,
+              justifyContent: "center",
+              fontSize: "1rem",
+            }}
+          >
+            {sharedGameState.gameEnded
+              ? t("hostCanStart")
+              : t("willStart")}
+          </Alert>
+        </Paper>
+      )}
+    </Container>
+  )}
 
         {gamePhase === "ended" &&
           sharedGameState.gameEnded &&
@@ -599,7 +603,7 @@ const Hangman = ({ lobbyCode, lobbyInfo, members, socket, user,hangmanSoundEnabl
                 maxWidth: "md",
               }}
             >
-              Oyun sona erdi. Yeni oyun için hostu bekleyin.
+             {t("GameOverWaitHost")}
             </Alert>
           )}
       </GameContainer>
@@ -620,12 +624,13 @@ const Hangman = ({ lobbyCode, lobbyInfo, members, socket, user,hangmanSoundEnabl
           <GameEndScreen
             sharedGameState={sharedGameState}
             onClose={handleCloseGameEndModal}
+            t={t}
           />
         </Box>
       </Modal>
 
       {gamePhase === "countdown" && countdown !== null && (
-        <CountdownScreen countdown={countdown} />
+        <CountdownScreen countdown={countdown} t={t}/>
       )}
 
       <NotificationArea

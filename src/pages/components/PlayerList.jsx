@@ -1,25 +1,55 @@
 import React from 'react';
-import { 
-  Paper, 
-  Typography, 
-  Box, 
-  Tooltip, 
-  Chip, 
+import {
+  Paper,
+  Typography,
+  Box,
+  Tooltip,
+  Chip,
   Avatar,
   Badge,
   useMediaQuery
 } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import PersonIcon from '@mui/icons-material/Person';
-import EmojiEventsIcon from '@mui/icons-material/EmojiEvents'; 
+import EmojiEventsIcon from '@mui/icons-material/EmojiEvents';
 import StarIcon from '@mui/icons-material/Star';
 import HangmanDrawing from './HangmanDrawing';
 
-const PlayerList = ({ members, sharedGameState, userId }) => {
+// Helper function for color transparency
+function alpha(color, alphaValue) { // Renamed 'alpha' parameter to avoid conflict
+  if (!color) return undefined;
+  return color + String(Math.round(alphaValue * 255)).toString(16).padStart(2, '0');
+}
+
+// Generate consistent avatar colors based on user id
+function getAvatarColor(userId, theme) {
+  let hash = 0;
+  for (let i = 0; i < userId.length; i++) {
+    hash = userId.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  const colors = [
+    theme.palette.primary.main,
+    theme.palette.secondary.main,
+    theme.palette.error.main,
+    theme.palette.warning.main,
+    theme.palette.info.main,
+    theme.palette.success.main,
+    theme.palette.grey[700],
+    '#9c27b0', // purple
+    '#00796b', // teal
+    '#e65100', // orange deep
+    '#3e2723', // brown
+    '#1a237e', // indigo
+  ];
+  const colorIndex = Math.abs(hash) % colors.length;
+  return colors[colorIndex];
+}
+
+
+const PlayerList = ({ members, sharedGameState, userId, t }) => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
-  
-  // Sort members: current user first, then host, then current player, then others
+
   const sortedMembers = [...members].sort((a, b) => {
     const isCurrentUserA = a.id === userId;
     const isCurrentUserB = b.id === userId;
@@ -27,7 +57,7 @@ const PlayerList = ({ members, sharedGameState, userId }) => {
     const isHostB = b.id === sharedGameState.hostId;
     const isCurrentPlayerA = a.id === sharedGameState.currentPlayerId;
     const isCurrentPlayerB = b.id === sharedGameState.currentPlayerId;
-    
+
     if (isCurrentUserA !== isCurrentUserB) return isCurrentUserA ? -1 : 1;
     if (isHostA !== isHostB) return isHostA ? -1 : 1;
     if (isCurrentPlayerA !== isCurrentPlayerB) return isCurrentPlayerA ? -1 : 1;
@@ -35,18 +65,18 @@ const PlayerList = ({ members, sharedGameState, userId }) => {
   });
 
   return (
-    <Paper 
-      elevation={3} 
-      sx={{ 
+    <Paper
+      elevation={3}
+      sx={{
         height: '100%',
-        display: 'flex', 
+        display: 'flex',
         flexDirection: 'column',
         overflow: 'hidden',
         borderRadius: 2
       }}
     >
-      <Box sx={{ 
-        p: 1.5, 
+      <Box sx={{
+        p: 1.5,
         borderBottom: `1px solid ${theme.palette.divider}`,
         display: 'flex',
         alignItems: 'center',
@@ -60,22 +90,22 @@ const PlayerList = ({ members, sharedGameState, userId }) => {
         }}>
           <PersonIcon fontSize="small" color="primary" />
           <Typography variant="subtitle1" fontWeight="medium">
-            Players
+            {t("playerList.title")}
           </Typography>
         </Box>
-        <Chip 
-          size="small" 
-          label={members.length} 
-          color="primary" 
+        <Chip
+          size="small"
+          label={members.length}
+          color="primary"
           sx={{
             fontWeight: 'bold',
             minWidth: 28
           }}
         />
       </Box>
-      
-      <Box sx={{ 
-        overflow: 'auto', 
+
+      <Box sx={{
+        overflow: 'auto',
         flexGrow: 1,
         p: 1,
         display: 'flex',
@@ -84,64 +114,63 @@ const PlayerList = ({ members, sharedGameState, userId }) => {
       }}>
         {sortedMembers.map(member => {
           const playerStatus = sharedGameState.playerStates[member.id] || {
-            remainingAttempts: 6, 
-            won: false, 
+            remainingAttempts: 6,
+            won: false,
             eliminated: false,
-            userName: member.username, 
+            userName: member.username,
             name: member.name
           };
-          
+
           const isCurrent = member.id === userId;
           const isGameHost = member.id === sharedGameState.hostId;
-          const isCurrentTurnPlayer = member.id === sharedGameState.currentPlayerId && 
-                                    sharedGameState.gameStarted && 
+          const isCurrentTurnPlayer = member.id === sharedGameState.currentPlayerId &&
+                                    sharedGameState.gameStarted &&
                                     !sharedGameState.gameEnded;
-          
+
           let statusChip = null;
           if (playerStatus.won) {
             statusChip = (
-              <Chip 
-                size="small" 
+              <Chip
+                size="small"
                 icon={<EmojiEventsIcon fontSize="small" />}
-                label="Won!" 
-                color="success" 
-                sx={{ height: 24, fontSize: '0.7rem' }} 
+                label={t("playerList.status.won")}
+                color="success"
+                sx={{ height: 24, fontSize: '0.7rem' }}
               />
             );
           } else if (playerStatus.eliminated) {
             statusChip = (
-              <Chip 
-                size="small" 
-                label="Eliminated" 
-                color="error" 
-                sx={{ height: 24, fontSize: '0.7rem' }} 
+              <Chip
+                size="small"
+                label={t("playerList.status.eliminated")}
+                color="error"
+                sx={{ height: 24, fontSize: '0.7rem' }}
               />
             );
           }
-          
-          const displayName = playerStatus.userName || member.username || 'undefined player';
+
+          const displayName = playerStatus.userName || member.username || t("playerList.undefinedPlayer");
           const initial = displayName.charAt(0).toUpperCase();
-          
-          // Avatar with badge for host
+
           const avatarElement = isGameHost ? (
             <Badge
               overlap="circular"
               anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
               badgeContent={
-                <Tooltip title="Host">
-                  <StarIcon 
-                    sx={{ 
-                      fontSize: 14, 
+                <Tooltip title={t("playerList.role.host")}>
+                  <StarIcon
+                    sx={{
+                      fontSize: 14,
                       color: theme.palette.warning.main,
                       bgcolor: theme.palette.background.paper,
                       borderRadius: '50%'
-                    }} 
+                    }}
                   />
                 </Tooltip>
               }
             >
               <Avatar
-               src={member.avatar || undefined}
+                src={member.avatar || undefined}
                 sx={{
                   width: 32,
                   height: 32,
@@ -151,12 +180,12 @@ const PlayerList = ({ members, sharedGameState, userId }) => {
                   bgcolor: getAvatarColor(member.id, theme)
                 }}
               >
-                {!member.avatar && {initial}}
+                {!member.avatar && initial} {/* Corrected to display initial */}
               </Avatar>
             </Badge>
           ) : (
             <Avatar
-            src={member.avatar || undefined}
+              src={member.avatar || undefined}
               sx={{
                 width: 32,
                 height: 32,
@@ -166,24 +195,24 @@ const PlayerList = ({ members, sharedGameState, userId }) => {
                 bgcolor: getAvatarColor(member.id, theme)
               }}
             >
-             {!member.avatar && {initial}}
+              {!member.avatar && initial} {/* Corrected to display initial */}
             </Avatar>
           );
-          
+
           return (
             <Box
               key={member.id}
               sx={{
                 display: 'flex',
                 alignItems: 'center',
-                backgroundColor: isCurrentTurnPlayer ? alpha(theme.palette.info.main, 0.1) : 
-                                isCurrent ? alpha(theme.palette.primary.main, 0.05) : 
+                backgroundColor: isCurrentTurnPlayer ? alpha(theme.palette.info.main, 0.1) :
+                                isCurrent ? alpha(theme.palette.primary.main, 0.05) :
                                 'transparent',
                 borderRadius: 2,
                 p: 1.5,
                 gap: 1.5,
-                border: isCurrentTurnPlayer ? `1px solid ${theme.palette.info.main}` : 
-                       isCurrent ? `1px solid ${theme.palette.primary.light}` : 
+                border: isCurrentTurnPlayer ? `1px solid ${theme.palette.info.main}` :
+                       isCurrent ? `1px solid ${theme.palette.primary.light}` :
                        `1px solid ${theme.palette.divider}`,
                 position: 'relative',
                 overflow: 'hidden',
@@ -195,7 +224,6 @@ const PlayerList = ({ members, sharedGameState, userId }) => {
                 }
               }}
             >
-              {/* Left indicator for current turn */}
               {isCurrentTurnPlayer && (
                 <Box sx={{
                   position: 'absolute',
@@ -208,13 +236,13 @@ const PlayerList = ({ members, sharedGameState, userId }) => {
                   borderBottomLeftRadius: 8
                 }} />
               )}
-              
+
               {avatarElement}
-              
+
               <Box sx={{ flexGrow: 1, overflow: 'hidden' }}>
-                <Box sx={{ 
-                  display: 'flex', 
-                  alignItems: 'center', 
+                <Box sx={{
+                  display: 'flex',
+                  alignItems: 'center',
                   gap: 1,
                   flexWrap: 'wrap',
                   overflow: 'hidden'
@@ -226,23 +254,23 @@ const PlayerList = ({ members, sharedGameState, userId }) => {
                       overflow: 'hidden',
                       textOverflow: 'ellipsis',
                       whiteSpace: 'nowrap',
-                      color: isCurrent ? theme.palette.primary.main : 
-                            isCurrentTurnPlayer ? theme.palette.info.main : 
+                      color: isCurrent ? theme.palette.primary.main :
+                            isCurrentTurnPlayer ? theme.palette.info.main :
                             'text.primary',
                       fontSize: '0.9rem',
                     }}
                   >
                     {displayName}
                   </Typography>
-                  
+
                   {isCurrent && (
                     <Chip
                       size="small"
-                      label="Siz"
+                      label={t("playerList.currentUserIndicator.full")}
                       color="primary"
                       variant="outlined"
-                      sx={{ 
-                        height: 22, 
+                      sx={{
+                        height: 22,
                         fontSize: '0.7rem',
                         fontWeight: 'bold',
                         px: 0.5,
@@ -250,7 +278,7 @@ const PlayerList = ({ members, sharedGameState, userId }) => {
                       }}
                     />
                   )}
-                  
+
                   {isCurrent && isMobile && (
                     <Box
                       sx={{
@@ -266,20 +294,20 @@ const PlayerList = ({ members, sharedGameState, userId }) => {
                         justifyContent: 'center',
                       }}
                     >
-                      S
+                      {t("playerList.currentUserIndicator.short")}
                     </Box>
                   )}
                 </Box>
-                
-                <Box sx={{ 
-                  display: 'flex', 
-                  alignItems: 'center', 
+
+                <Box sx={{
+                  display: 'flex',
+                  alignItems: 'center',
                   mt: 0.5,
                   gap: 1,
                   flexWrap: 'wrap'
                 }}>
                   {statusChip || (
-                    <Box sx={{ 
+                    <Box sx={{
                       color: theme.palette.text.secondary,
                       display: 'flex',
                       alignItems: 'center',
@@ -291,18 +319,18 @@ const PlayerList = ({ members, sharedGameState, userId }) => {
                       fontSize: '0.75rem',
                     }}>
                       <Box component="span" sx={{ fontWeight: 'medium' }}>
-                        Hak: {playerStatus.remainingAttempts}
+                        {t("playerList.attemptsLeft", { count: playerStatus.remainingAttempts })}
                       </Box>
                     </Box>
                   )}
-                  
+
                   {isCurrentTurnPlayer && (
                     <Chip
                       size="small"
-                      label="Sıra"
+                      label={t("playerList.currentTurnIndicator")}
                       color="info"
-                      sx={{ 
-                        height: 24, 
+                      sx={{
+                        height: 24,
                         fontSize: '0.7rem',
                         fontWeight: 'bold'
                       }}
@@ -310,16 +338,16 @@ const PlayerList = ({ members, sharedGameState, userId }) => {
                   )}
                 </Box>
               </Box>
-              
-              <Box sx={{ 
+
+              <Box sx={{
                 display: {
                   xs: playerStatus.remainingAttempts < 6 ? 'block' : 'none',
                   sm: 'block'
                 }
               }}>
-                <HangmanDrawing 
-                  incorrectGuesses={6 - playerStatus.remainingAttempts} 
-                  size={isMobile ? 0.30 : 0.40} 
+                <HangmanDrawing
+                  incorrectGuesses={6 - playerStatus.remainingAttempts}
+                  size={isMobile ? 0.30 : 0.40}
                 />
               </Box>
             </Box>
@@ -329,40 +357,5 @@ const PlayerList = ({ members, sharedGameState, userId }) => {
     </Paper>
   );
 };
-
-// Helper function for color transparency
-function alpha(color, alpha) {
-  if (!color) return undefined;
-  return color + String(Math.round(alpha * 255)).toString(16).padStart(2, '0');
-}
-
-// Generate consistent avatar colors based on user id
-function getAvatarColor(userId, theme) {
-  // Create a simple hash from the userId string
-  let hash = 0;
-  for (let i = 0; i < userId.length; i++) {
-    hash = userId.charCodeAt(i) + ((hash << 5) - hash);
-  }
-  
-  // List of MUI colors to use for avatars
-  const colors = [
-    theme.palette.primary.main,
-    theme.palette.secondary.main,
-    theme.palette.error.main,
-    theme.palette.warning.main,
-    theme.palette.info.main,
-    theme.palette.success.main,
-    theme.palette.grey[700],
-    '#9c27b0', // purple
-    '#00796b', // teal
-    '#e65100', // orange deep
-    '#3e2723', // brown
-    '#1a237e', // indigo
-  ];
-  
-  // Use the hash to pick a color
-  const colorIndex = Math.abs(hash) % colors.length;
-  return colors[colorIndex];
-}
 
 export default PlayerList;

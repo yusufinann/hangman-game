@@ -10,31 +10,49 @@ const HostSetupModal = ({
   hostSetupData,
   onHostSetupChange,
   onStartGame,
+  t
 }) => {
   return (
     <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm">
-      <DialogTitle sx={{ bgcolor: 'primary.main', color: 'primary.contrastText' }}>Yeni Oyun Ayarları</DialogTitle>
+      <DialogTitle sx={{ bgcolor: 'primary.main', color: 'primary.contrastText' }}>
+        {t("hostSetupModal.title")}
+      </DialogTitle>
       <DialogContent sx={{ pt: 3 }}>
         <DialogContentText sx={{ mb: 2 }}>
-          Oyuncuların tahmin edeceği kelime için bir kategori seçin. Kelime rastgele seçilecektir.
+          {t("hostSetupModal.description")}
         </DialogContentText>
         <FormControl fullWidth margin="normal" required>
-          <InputLabel id="category-select-label">Kategori</InputLabel>
+          <InputLabel id="category-select-label">{t("hostSetupModal.categoryLabel")}</InputLabel>
           <Select
             labelId="category-select-label"
             name="category"
             value={hostSetupData.category}
-            label="Kategori"
+            label={t("hostSetupModal.categoryLabel")} // Ensure this matches the InputLabel
             onChange={onHostSetupChange}
           >
-            {hostSetupData.availableCategories.length === 0 && <MenuItem disabled><CircularProgress size={20} sx={{mr:1}}/>Kategoriler yükleniyor...</MenuItem>}
-            {hostSetupData.availableCategories.map(cat => <MenuItem key={cat} value={cat}>{cat.charAt(0).toUpperCase() + cat.slice(1)}</MenuItem>)}
+            {hostSetupData.availableCategories.length === 0 && (
+              <MenuItem disabled>
+                <CircularProgress size={20} sx={{mr:1}}/>
+                {t("hostSetupModal.loadingCategories")}
+              </MenuItem>
+            )}
+            {hostSetupData.availableCategories.map(cat => (
+              <MenuItem key={cat} value={cat}>
+                {cat.charAt(0).toUpperCase() + cat.slice(1)} {/* Assuming category names are fine as is or pre-translated */}
+              </MenuItem>
+            ))}
           </Select>
         </FormControl>
       </DialogContent>
       <DialogActions sx={{ p: 2 }}>
-        <Button onClick={onClose} color="inherit">İptal</Button>
-        <Button onClick={onStartGame} variant="contained" disabled={!hostSetupData.category}>Oyunu Başlat</Button>
+        <Button onClick={onClose} color="inherit">{t("hostSetupModal.cancelButton")}</Button>
+        <Button
+          onClick={onStartGame}
+          variant="contained"
+          disabled={!hostSetupData.category}
+        >
+          {t("hostSetupModal.startButton")}
+        </Button>
       </DialogActions>
     </Dialog>
   );
