@@ -1,46 +1,35 @@
-import { useState, useEffect, useMemo} from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import {
-  Box,
-  CircularProgress,
   Alert,
-  Typography,
-  Paper,
-  List,
-  ListItem,
-  ListItemText,
-  ListItemIcon,
-  Container,
-  Divider,
-  Modal,
+  Box,
 } from "@mui/material";
-import PersonIcon from "@mui/icons-material/Person";
 import { useGameNotifications } from "../hooks/useGameNotifications";
 import { useTurnTimer } from "../hooks/useTurnTimer";
 import { useWebSocketHandler } from "../hooks/useWebSocketHandler";
-import PeopleIcon from "@mui/icons-material/People";
-import HourglassEmptyIcon from "@mui/icons-material/HourglassEmpty";
 import { GameContainer } from "./components/StyledComponents";
 import GameControls from "./components/GameControls";
 import HostSetupModal from "./components/HostSetupModal";
 import GamePlayArea from "./components/GamePlayArea";
 import PlayerList from "./components/PlayerList";
-import GameEndScreen from "./components/GameEndScreen";
 import CountdownScreen from "./components/CountdownScreen";
 import NotificationArea from "./components/NotificationArea";
 import useHangmanSound from "../hooks/useHangmanSound";
+import HangmanLoading from "./components/HangmanLoading";
+import HangmanError from "./components/HangmanError";
+import HangmanWaitingScreen from "./components/HangmanWaitingScreen";
+import GameEndModalManager from "./components/GameEndModalManager";
 
-const Hangman = ({ lobbyCode, lobbyInfo, members, socket, user,hangmanSoundEnabled,toggleSound,t }) => {
+const Hangman = ({ lobbyCode, lobbyInfo, members, socket, user, hangmanSoundEnabled, toggleSound, t }) => {
   const [isHost, setIsHost] = useState(false);
   const [gamePhase, setGamePhase] = useState("loading");
   const [hostSetupData, setHostSetupData] = useState({
     category: "",
     availableCategories: [],
   });
-  const { playSound } = useHangmanSound(hangmanSoundEnabled); 
+  const { playSound } = useHangmanSound(hangmanSoundEnabled);
   const [showHostSetupModal, setShowHostSetupModal] = useState(false);
   const [countdown, setCountdown] = useState(null);
-  const [showGameEndModal, setShowGameEndModal] = useState(false);
-  const [hasAcknowledgedGameEnd, setHasAcknowledgedGameEnd] = useState(false);
+
   const [sharedGameState, setSharedGameState] = useState({
     maskedWord: "",
     category: "",
@@ -65,6 +54,9 @@ const Hangman = ({ lobbyCode, lobbyInfo, members, socket, user,hangmanSoundEnabl
 
   const [currentWordGuessInput, setCurrentWordGuessInput] = useState("");
 
+  const [isGameEndModalVisible, setIsGameEndModalVisible] = useState(false);
+  const prevGameEndedState = useRef(undefined); 
+
   const {
     notifications,
     addNotification,
@@ -86,7 +78,7 @@ const Hangman = ({ lobbyCode, lobbyInfo, members, socket, user,hangmanSoundEnabl
     gamePhase,
     members,
     clearAllNotifications,
-     playSoundCallback: playSound,
+    playSoundCallback: playSound,
   });
 
   const turnTimeLeft = useTurnTimer(
@@ -146,38 +138,19 @@ const Hangman = ({ lobbyCode, lobbyInfo, members, socket, user,hangmanSoundEnabl
     return playerState?.userName || "Bilinmeyen";
   }, [members, sharedGameState.currentPlayerId, sharedGameState.playerStates]);
 
-  const shouldShowWaitingScreen = useMemo(() => {
+  const shouldShowWaitingOrEndedScreen = useMemo(() => {
     if (gamePhase === "waiting" && !sharedGameState.gameStarted) {
       return true;
     }
-    if (gamePhase === "ended" && sharedGameState.gameEnded) {
-      if (
-        currentUserIsInRankings &&
-        !showGameEndModal &&
-        hasAcknowledgedGameEnd
-      ) {
-        return true;
-      }
-      if (!sharedGameState.rankings || sharedGameState.rankings.length === 0) {
-        return true;
-      }
-      if (
-        sharedGameState.rankings &&
-        sharedGameState.rankings.length > 0 &&
-        !currentUserIsInRankings
-      ) {
-        return true;
-      }
+    if (gamePhase === "ended" && sharedGameState.gameEnded && !isGameEndModalVisible) {
+      return true;
     }
     return false;
   }, [
     gamePhase,
     sharedGameState.gameStarted,
     sharedGameState.gameEnded,
-    sharedGameState.rankings,
-    currentUserIsInRankings,
-    showGameEndModal,
-    hasAcknowledgedGameEnd,
+    isGameEndModalVisible,
   ]);
 
   useEffect(() => {
@@ -187,71 +160,45 @@ const Hangman = ({ lobbyCode, lobbyInfo, members, socket, user,hangmanSoundEnabl
   }, [user?.id, lobbyInfo?.createdBy]);
 
   useEffect(() => {
-    if (sharedGameState.gameStarted && !sharedGameState.gameEnded) {
-      setHasAcknowledgedGameEnd(false);
-      setShowGameEndModal(false);
+  
+    if (sharedGameState.hostId !== null && prevGameEndedState.current === undefined) {
+      prevGameEndedState.current = sharedGameState.gameEnded;
     }
-  }, [sharedGameState.gameStarted, sharedGameState.gameEnded]);
 
-  useEffect(() => {
+   
     if (
       gamePhase === "ended" &&
-      sharedGameState.gameEnded &&
+      sharedGameState.gameEnded && 
+      prevGameEndedState.current === false && 
       sharedGameState.rankings &&
       sharedGameState.rankings.length > 0 &&
-      !hasAcknowledgedGameEnd &&
       currentUserIsInRankings
     ) {
-      setShowGameEndModal(true);
-    } else if (showGameEndModal) {
-      const shouldModalBeOpen =
-        gamePhase === "ended" &&
-        sharedGameState.gameEnded &&
-        sharedGameState.rankings &&
-        sharedGameState.rankings.length > 0 &&
-        !hasAcknowledgedGameEnd &&
-        currentUserIsInRankings;
-
-      if (!shouldModalBeOpen) {
-        setShowGameEndModal(false);
-      }
+      setIsGameEndModalVisible(true);
     }
+    if (sharedGameState.hostId !== null) { 
+        prevGameEndedState.current = sharedGameState.gameEnded;
+    }
+
+
   }, [
     gamePhase,
     sharedGameState.gameEnded,
     sharedGameState.rankings,
-    hasAcknowledgedGameEnd,
-    showGameEndModal,
+    sharedGameState.hostId, 
     currentUserIsInRankings,
   ]);
 
-  if (gamePhase === "loading" || !user?.id) {
-    return (
-      <Box
-        sx={{
-          display: "flex",
-          justifyContent: "center",
-          alignItems: "center",
-          height: "50vh",
-        }}
-      >
-        <CircularProgress size={50} />
-        <Typography variant="h6" sx={{ ml: 2 }}>
-          {t("Game Loading...")}
-        </Typography>
-      </Box>
-    );
+
+  if (gamePhase === "loading" || !user?.id || (gamePhase !== "error" && sharedGameState.hostId === null && (sharedGameState.gameStarted || sharedGameState.gameEnded))) {
+    return <HangmanLoading t={t} />;
   }
   if (gamePhase === "error") {
-    return (
-      <Alert severity="error" sx={{ m: 3, p: 2 }}>
-       {t("hangmanLoadingErrorMessage")}
-      </Alert>
-    );
+    return <HangmanError t={t} />;
   }
 
   const lobbyCreatorName =
-    lobbyCreatorDetails?.name || lobbyCreatorDetails?.username || "Bilinmiyor";
+    lobbyCreatorDetails?.name || lobbyCreatorDetails?.username || t("Unknown");
 
   const handleOpenHostSetup = () => {
     if (isHost && socket) {
@@ -269,12 +216,12 @@ const Hangman = ({ lobbyCode, lobbyInfo, members, socket, user,hangmanSoundEnabl
     if (!socket || !isHost) return;
     const { category } = hostSetupData;
     if (!category) {
-      addNotification("Lütfen bir kategori seçin.", "error");
+      addNotification(t("selectCategoryError"), "error");
       return;
     }
     if (!members || members.filter((m) => m.id !== user.id).length < 1) {
       addNotification(
-        "Oyunu başlatmak için sizden başka en az 1 oyuncu daha gereklidir.",
+        t("notEnoughPlayersError"),
         "warning"
       );
       return;
@@ -297,7 +244,7 @@ const Hangman = ({ lobbyCode, lobbyInfo, members, socket, user,hangmanSoundEnabl
       myPlayerSpecificState.correctGuesses.includes(l) ||
       myPlayerSpecificState.incorrectGuesses.includes(l)
     ) {
-      addNotification("Bu harfi zaten denediniz.", "warning", 2000);
+      addNotification(t("alreadyGuessedLetterWarn"), "warning", 2000);
       return;
     }
     socket.send(
@@ -330,8 +277,7 @@ const Hangman = ({ lobbyCode, lobbyInfo, members, socket, user,hangmanSoundEnabl
   };
 
   const handleCloseGameEndModal = () => {
-    setShowGameEndModal(false);
-    setHasAcknowledgedGameEnd(true);
+    setIsGameEndModalVisible(false);
   };
 
   const handleCloseNotification = (id) => {
@@ -392,7 +338,8 @@ const Hangman = ({ lobbyCode, lobbyInfo, members, socket, user,hangmanSoundEnabl
                 gamePhase={gamePhase}
                 onOpenHostSetup={handleOpenHostSetup}
                 onEndGameByHost={handleEndGameByHost}
-                toggleSound={toggleSound} soundEnabled={hangmanSoundEnabled}
+                toggleSound={toggleSound}
+                soundEnabled={hangmanSoundEnabled}
                 t={t}
               />
             </Box>
@@ -412,8 +359,7 @@ const Hangman = ({ lobbyCode, lobbyInfo, members, socket, user,hangmanSoundEnabl
             </Box>
           </Box>
         ) : (
-          (gamePhase === "waiting" ||
-            (gamePhase === "ended" && !showGameEndModal)) && (
+          (gamePhase === "waiting" || (gamePhase === "ended" && !isGameEndModalVisible)) && (
             <GameControls
               isHost={isHost}
               gamePhase={gamePhase}
@@ -424,170 +370,22 @@ const Hangman = ({ lobbyCode, lobbyInfo, members, socket, user,hangmanSoundEnabl
           )
         )}
 
-        {shouldShowWaitingScreen && (
-    <Container
-      maxWidth="md"
-      sx={{ mt: 4, flexGrow: 1, overflowY: "auto" }}
-    >
-      {isHost ? (
-        <Paper elevation={3} sx={{ p: 3, textAlign: "center" }}>
-          <Typography
-            variant="h4"
-            component="h1"
-            gutterBottom
-            sx={{ fontWeight: "bold", color: "primary.main" }}
-          >
-            {sharedGameState.gameEnded
-              ? t("titleGameOver")  
-              : t("titleWaiting")} 
-          </Typography>
-          <Typography
-            variant="subtitle1"
-            color="text.secondary"
-            gutterBottom
-          >
-            {sharedGameState.gameEnded
-              ? t("descriptionCanStartNew")
-              : t("descriptionWaitingForPlayers")} 
-          </Typography>
-
-          <Divider sx={{ my: 3 }} />
-
-          <Typography variant="h6" gutterBottom>
-            <PeopleIcon sx={{ verticalAlign: "middle", mr: 1 }} />
-            {t("Joined Players")} ({members ? members.length : 0})
-          </Typography>
-          {members && members.length > 0 ? (
-            <List
-              dense
-              sx={{
-                mb: 3,
-                maxHeight: 200,
-                overflow: "auto",
-                border: "1px solid",
-                borderColor: "divider",
-                borderRadius: 1,
-              }}
-            >
-              {members.map((member) => (
-                <ListItem key={member.id}>
-                  <ListItemIcon>
-                    <PersonIcon color="action" />
-                  </ListItemIcon>
-                  <ListItemText
-                    primary={
-                      member.name ||
-                      member.username ||
-                      `${t('defaultNamePrefix')} ${member.id.substring(0, 4)}` // "Player Xyz"
-                    }
-                  />
-                </ListItem>
-              ))}
-            </List>
-          ) : (
-            <Typography color="text.secondary" sx={{ my: 2 }}>
-              {t("hangmanNoPlayers")}
-            </Typography>
-          )}
-          <Typography variant="caption" display="block" sx={{ mt: 1 }}>
-            {(!members ||
-              members.filter((m) => m.id !== user.id).length < 1) &&
-              !sharedGameState.gameEnded &&
-              t("hangmanStartWarning")}
-          </Typography>
-        </Paper>
-      ) : (
-        <Paper elevation={3} sx={{ p: 4, textAlign: "center" }}>
-          {!sharedGameState.gameEnded && (
-            <HourglassEmptyIcon
-              sx={{ fontSize: 60, color: "primary.main", mb: 2 }}
-            />
-          )}
-          <Typography
-            variant="h5"
-            component="h2"
-            gutterBottom
-            sx={{ fontWeight: "medium" }}
-          >
-            {sharedGameState.gameEnded
-              ? t("Game Over - Waiting Screen")
-              : t("Welcome to Lobby!")}
-          </Typography>
-          <Typography
-            variant="body1"
-            color="text.secondary"
-            sx={{ mb: 3 }}
-          >
-            {t('waitingForHost', {
-              hostName: lobbyCreatorName,
-              action: sharedGameState.gameEnded
-                ? t('startNewGame')
-                : t('startGame'),
-            })}
-          </Typography>
-
-          {!sharedGameState.gameEnded && (
-            <CircularProgress sx={{ mb: 3 }} />
-          )}
-
-          <Typography variant="h6" gutterBottom>
-            <PeopleIcon sx={{ verticalAlign: "middle", mr: 1 }} />
-            {t("Joined Players")} ({members ? members.length : 0})
-          </Typography>
-          {members && members.length > 0 ? (
-            <List
-              dense
-              sx={{
-                mb: 2,
-                maxHeight: 150,
-                overflow: "auto",
-                width: "80%",
-                margin: "0 auto",
-                border: "1px solid",
-                borderColor: "divider",
-                borderRadius: 1,
-              }}
-            >
-              {members.map((member) => (
-                <ListItem key={member.id}>
-                  <ListItemText
-                    primary={`${member.name || member.username || t('player.defaultNamePrefixShort')}${ // Using a shorter default or combining
-                      member.id === user.id ? t('player.indicatorYouSuffix') : "" // " (You)"
-                    }${
-                      member.id === lobbyInfo.createdBy ? t('player.indicatorHostSuffix') : "" // " (Host)"
-                    }`}
-                    sx={{ textAlign: "center" }}
-                  />
-                </ListItem>
-              ))}
-            </List>
-          ) : (
-            <Typography color="text.secondary" sx={{ my: 2 }}>
-              {t("NoJoinedPlayer")}
-            </Typography>
-          )}
-          <Alert
-            severity="info"
-            variant="outlined"
-            sx={{
-              mt: 4,
-              p: 2,
-              justifyContent: "center",
-              fontSize: "1rem",
-            }}
-          >
-            {sharedGameState.gameEnded
-              ? t("hostCanStart")
-              : t("willStart")}
-          </Alert>
-        </Paper>
-      )}
-    </Container>
-  )}
+        {shouldShowWaitingOrEndedScreen && (
+          <HangmanWaitingScreen
+            isHost={isHost}
+            members={members}
+            lobbyInfo={lobbyInfo}
+            user={user}
+            sharedGameState={sharedGameState}
+            onOpenHostSetup={handleOpenHostSetup}
+            lobbyCreatorName={lobbyCreatorName}
+            t={t}
+          />
+        )}
 
         {gamePhase === "ended" &&
           sharedGameState.gameEnded &&
-          !showGameEndModal &&
+          !isGameEndModalVisible &&
           !(sharedGameState.rankings && sharedGameState.rankings.length > 0) &&
           !isHost && (
             <Alert
@@ -602,34 +400,20 @@ const Hangman = ({ lobbyCode, lobbyInfo, members, socket, user,hangmanSoundEnabl
                 maxWidth: "md",
               }}
             >
-             {t("GameOverWaitHost")}
+              {t("GameOverWaitHost")}
             </Alert>
           )}
       </GameContainer>
 
-      <Modal
-        open={showGameEndModal}
+      <GameEndModalManager
+        show={isGameEndModalVisible}
+        sharedGameState={sharedGameState}
         onClose={handleCloseGameEndModal}
-        aria-labelledby="game-end-screen-title"
-        aria-describedby="game-end-screen-description"
-        sx={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          p: 1,
-        }}
-      >
-        <Box sx={{ outline: "none" }}>
-          <GameEndScreen
-            sharedGameState={sharedGameState}
-            onClose={handleCloseGameEndModal}
-            t={t}
-          />
-        </Box>
-      </Modal>
+        t={t}
+      />
 
       {gamePhase === "countdown" && countdown !== null && (
-        <CountdownScreen countdown={countdown} t={t}/>
+        <CountdownScreen countdown={countdown} t={t} />
       )}
 
       <NotificationArea

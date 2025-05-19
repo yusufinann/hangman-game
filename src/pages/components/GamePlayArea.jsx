@@ -22,7 +22,7 @@ const GamePlayArea = ({
   onOpenHostSetup,
   onEndGameByHost,
   toggleSound,
-  hangmanSoundEnabled,
+  soundEnabled,
   t 
 }) => {
   return (
@@ -96,7 +96,7 @@ const GamePlayArea = ({
               />
               </Box>
               <Box>
- <VolumeButton toggleSound={toggleSound} soundEnabled={hangmanSoundEnabled} t={t} />
+ <VolumeButton toggleSound={toggleSound} soundEnabled={soundEnabled} t={t} />
               </Box>
             </Box>
           </Box>
