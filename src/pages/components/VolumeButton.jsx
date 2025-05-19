@@ -9,10 +9,6 @@ const VolumeButton = ({ toggleSound, soundEnabled, t }) => {
   return (
     <Box
       sx={{
-        position: 'fixed',
-        top: (theme) => theme.spacing(2),
-        right: (theme) => theme.spacing(2),
-        zIndex: 1301,
         backgroundColor: 'rgba(255, 255, 255, 0.7)',
         borderRadius: '50%',
         '&:hover': {

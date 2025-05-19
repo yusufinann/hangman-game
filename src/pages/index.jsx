@@ -28,7 +28,6 @@ import GameEndScreen from "./components/GameEndScreen";
 import CountdownScreen from "./components/CountdownScreen";
 import NotificationArea from "./components/NotificationArea";
 import useHangmanSound from "../hooks/useHangmanSound";
-import VolumeButton from "./components/VolumeButton";
 
 const Hangman = ({ lobbyCode, lobbyInfo, members, socket, user,hangmanSoundEnabled,toggleSound,t }) => {
   const [isHost, setIsHost] = useState(false);
@@ -341,7 +340,6 @@ const Hangman = ({ lobbyCode, lobbyInfo, members, socket, user,hangmanSoundEnabl
 
   return (
     <>
-    <VolumeButton toggleSound={toggleSound} soundEnabled={hangmanSoundEnabled} t={t}/>
       <GameContainer
         sx={{
           display: "flex",
@@ -394,6 +392,7 @@ const Hangman = ({ lobbyCode, lobbyInfo, members, socket, user,hangmanSoundEnabl
                 gamePhase={gamePhase}
                 onOpenHostSetup={handleOpenHostSetup}
                 onEndGameByHost={handleEndGameByHost}
+                toggleSound={toggleSound} soundEnabled={hangmanSoundEnabled}
                 t={t}
               />
             </Box>

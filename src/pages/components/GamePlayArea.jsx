@@ -4,6 +4,7 @@ import HangmanDrawing from './HangmanDrawing';
 import AlphabetGrid from './AlphabetGrid';
 import { TimerBar } from './StyledComponents';
 import GameControls from './GameControls';
+import VolumeButton from './VolumeButton';
 
 const GamePlayArea = ({
   sharedGameState,
@@ -20,6 +21,8 @@ const GamePlayArea = ({
   gamePhase,
   onOpenHostSetup,
   onEndGameByHost,
+  toggleSound,
+  hangmanSoundEnabled,
   t 
 }) => {
   return (
@@ -80,15 +83,21 @@ const GamePlayArea = ({
               flex: '0 0 auto',
               display: 'flex',
               justifyContent: 'flex-end',
+              gap:5,
               minWidth: { xs: '100%', sm: 'auto' }
             }}>
+              <Box>
               <GameControls
                 isHost={isHost}
                 gamePhase={gamePhase}
                 onOpenHostSetup={onOpenHostSetup}
                 onEndGameByHost={onEndGameByHost}
-                t={t} // Pass t to GameControls if it also needs translation
+                t={t} 
               />
+              </Box>
+              <Box>
+ <VolumeButton toggleSound={toggleSound} soundEnabled={hangmanSoundEnabled} t={t} />
+              </Box>
             </Box>
           </Box>
 
