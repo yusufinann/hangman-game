@@ -79,6 +79,7 @@ const Hangman = ({ lobbyCode, lobbyInfo, members, socket, user, hangmanSoundEnab
     members,
     clearAllNotifications,
     playSoundCallback: playSound,
+    t
   });
 
   const turnTimeLeft = useTurnTimer(
@@ -219,13 +220,7 @@ const Hangman = ({ lobbyCode, lobbyInfo, members, socket, user, hangmanSoundEnab
       addNotification(t("selectCategoryError"), "error");
       return;
     }
-    if (!members || members.filter((m) => m.id !== user.id).length < 1) {
-      addNotification(
-        t("notEnoughPlayersError"),
-        "warning"
-      );
-      return;
-    }
+    
     socket.send(
       JSON.stringify({
         type: "HANGMAN_START",
@@ -290,7 +285,6 @@ const Hangman = ({ lobbyCode, lobbyInfo, members, socket, user, hangmanSoundEnab
         sx={{
           display: "flex",
           flexDirection: "column",
-          minHeight: "500px",
           height: "100%",
           width: "100%",
           overflow: "hidden",
