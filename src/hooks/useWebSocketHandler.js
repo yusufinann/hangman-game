@@ -14,13 +14,27 @@ export const useWebSocketHandler = ({
   gamePhase,
   members,
   clearAllNotifications,
-  playSoundCallback, t
+  playSoundCallback,
+  t,
+  setActiveGameBlockError,
 }) => {
   useEffect(() => {
     if (!socket) return;
 
     const handleMessage = (event) => {
       const data = JSON.parse(event.data);
+      const messageOriginLobbyCode = data.lobbyCode || data.sharedGameState?.lobbyCode;
+
+      if (data.type === "HANGMAN_ERROR" && data.activeGameInfo) {
+        addNotification(`Hata: ${data.message}`, "error");
+        setActiveGameBlockError(data.message);
+        if (gamePhase === "loading") setGamePhase("waiting");
+      } else if (messageOriginLobbyCode && messageOriginLobbyCode !== lobbyCode) {
+        console.warn(
+          `[WS Handler] Mesaj (${data.type}) lobi ${messageOriginLobbyCode} için geldi, ancak şu an lobi ${lobbyCode} görüntüleniyor. Mesaj yoksayıldı.`
+        );
+        return;
+      }
 
       const updateGameStates = () => {
         if (data.sharedGameState) {
@@ -47,9 +61,15 @@ export const useWebSocketHandler = ({
 
       switch (data.type) {
         case "HANGMAN_ERROR":
-          addNotification(`Hata: ${data.message}`, "error");
-          if (gamePhase === "loading") setGamePhase("waiting");
+          if (!data.activeGameInfo) {
+            addNotification(`Hata: ${data.message}`, "error");
+            setActiveGameBlockError(null);
+          }
+          if (gamePhase === "loading" && !(data.activeGameInfo && data.activeGameInfo.lobbyCode !== lobbyCode)) {
+            setGamePhase("waiting");
+          }
           break;
+
         case "HANGMAN_INFO":
           addNotification(data.message, "info");
           break;
@@ -110,6 +130,10 @@ export const useWebSocketHandler = ({
 
         case "HANGMAN_RECONNECTED":
         case "HANGMAN_JOINED_SUCCESS":
+          setActiveGameBlockError(null);
+          updateGameStates();
+          break;
+
         case "HANGMAN_GUESS_MADE":
         case "HANGMAN_WORD_GUESS_ATTEMPT":
         case "HANGMAN_CURRENT_GAME_STATE":
@@ -156,27 +180,14 @@ export const useWebSocketHandler = ({
           break;
 
         case "HANGMAN_GAME_OVER_WINNER":
-          playSoundCallback && playSoundCallback('gameOverWin');
-          addNotification(data.message, "info", 10000);
-          setGamePhase("ended");
-          if (data.sharedGameState) {
-            setSharedGameState((prev) => ({
-              ...prev,
-              ...data.sharedGameState,
-              gameEnded: true,
-              gameStarted: false,
-              word: data.word,
-            }));
-          } else {
-            updateGameStates();
-          }
-          setMyPlayerSpecificState((prev) => ({ ...prev, isMyTurn: false }));
-          break;
-
         case "HANGMAN_WORD_REVEALED_GAME_OVER":
         case "HANGMAN_GAME_OVER_NO_WINNERS":
         case "HANGMAN_GAME_OVER_HOST_ENDED":
-          playSoundCallback && playSoundCallback('gameOverLose');
+          playSoundCallback && playSoundCallback(
+            data.type === "HANGMAN_GAME_OVER_WINNER" || data.type === "HANGMAN_WORD_REVEALED_GAME_OVER"
+              ? 'gameOverWin'
+              : 'gameOverLose'
+          );
           addNotification(data.message, "info", 10000);
           setGamePhase("ended");
           if (data.sharedGameState) {
@@ -202,24 +213,23 @@ export const useWebSocketHandler = ({
             }));
           }
           break;
-
+        
+        case "HANGMAN_PLAYER_LEFT_PREGAME":
+        case "HANGMAN_PLAYER_LEFT_MIDGAME":
         case "HANGMAN_PLAYER_LEFT_LOBBY":
         case "HANGMAN_PLAYER_DISCONNECTED_UPDATE":
-          if (user && data.disconnectedUserId !== user.id) {
+          if (user && data.playerId && data.playerId !== user.id) {
             addNotification(
               data.message ||
-                `${data.userName || t('notifications.a_player', 'Bir oyuncu')} ayrıldı/bağlantısı kesildi.`,
+                `${data.playerName || data.userName || t('notifications.a_player', 'Bir oyuncu')} ayrıldı/bağlantısı kesildi.`,
               "warning"
             );
           } else if (
             user &&
-            data.disconnectedUserId === user.id &&
-            data.type === "HANGMAN_PLAYER_DISCONNECTED_UPDATE"
+            (data.playerId === user.id || data.disconnectedUserId === user.id) &&
+            (data.type === "HANGMAN_PLAYER_DISCONNECTED_UPDATE" || data.type === "HANGMAN_PLAYER_LEFT_PREGAME" || data.type === "HANGMAN_PLAYER_LEFT_MIDGAME")
           ) {
-            addNotification(
-              "Bağlantınız kesildi, yeniden bağlanmaya çalışılıyor...",
-              "error"
-            );
+          
           }
           updateGameStates();
           break;
@@ -246,7 +256,8 @@ export const useWebSocketHandler = ({
     members,
     clearAllNotifications,
     playSoundCallback,
-    t
+    t,
+    setActiveGameBlockError,
   ]);
 
   useEffect(() => {
@@ -255,15 +266,13 @@ export const useWebSocketHandler = ({
       if (isHost) {
         socket.send(JSON.stringify({ type: "HANGMAN_GET_CATEGORIES" }));
       }
-      if (gamePhase === "loading") {
-        setGamePhase("waiting");
-      }
-    } else if (!user?.id && gamePhase === "loading") {
+    } else if (socket && socket.readyState === WebSocket.OPEN && !user?.id && gamePhase === "loading") {
       addNotification(
         t('errors.userDataLoadFailed', "Kullanıcı bilgileri yüklenemedi, lütfen sayfayı yenileyin."),
         "error"
       );
       setGamePhase("error");
+      setActiveGameBlockError(t('errors.userDataLoadFailed', "Kullanıcı bilgileri yüklenemedi, lütfen sayfayı yenileyin."));
     }
   }, [
     socket,
@@ -273,6 +282,7 @@ export const useWebSocketHandler = ({
     addNotification,
     setGamePhase,
     gamePhase,
-    t
+    t,
+    setActiveGameBlockError,
   ]);
 };

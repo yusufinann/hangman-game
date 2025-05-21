@@ -15,17 +15,17 @@ import EmojiEventsIcon from '@mui/icons-material/EmojiEvents';
 import StarIcon from '@mui/icons-material/Star';
 import HangmanDrawing from './HangmanDrawing';
 
-// Helper function for color transparency
-function alpha(color, alphaValue) { // Renamed 'alpha' parameter to avoid conflict
+function alpha(color, alphaValue) {
   if (!color) return undefined;
-  return color + String(Math.round(alphaValue * 255)).toString(16).padStart(2, '0');
+  const hexColor = String(color);
+  return hexColor + String(Math.round(alphaValue * 255)).toString(16).padStart(2, '0');
 }
 
-// Generate consistent avatar colors based on user id
 function getAvatarColor(userId, theme) {
   let hash = 0;
-  for (let i = 0; i < userId.length; i++) {
-    hash = userId.charCodeAt(i) + ((hash << 5) - hash);
+  const userIdString = String(userId);
+  for (let i = 0; i < userIdString.length; i++) {
+    hash = userIdString.charCodeAt(i) + ((hash << 5) - hash);
   }
   const colors = [
     theme.palette.primary.main,
@@ -34,35 +34,50 @@ function getAvatarColor(userId, theme) {
     theme.palette.warning.main,
     theme.palette.info.main,
     theme.palette.success.main,
+    theme.palette.text.secondary,
+    theme.palette.grey[500],
     theme.palette.grey[700],
-    '#9c27b0', // purple
-    '#00796b', // teal
-    '#e65100', // orange deep
-    '#3e2723', // brown
-    '#1a237e', // indigo
+    '#9c27b0',
+    '#00796b',
+    '#e65100',
+    '#3e2723',
+    '#1a237e',
+    theme.palette.info.dark,
+    theme.palette.success.dark,
+    theme.palette.warning.dark,
+    theme.palette.error.dark,
   ];
   const colorIndex = Math.abs(hash) % colors.length;
   return colors[colorIndex];
 }
 
-
-const PlayerList = ({ members, sharedGameState, userId, t }) => {
+const PlayerList = ({ sharedGameState, userId, t }) => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
 
-  const sortedMembers = [...members].sort((a, b) => {
-    const isCurrentUserA = a.id === userId;
-    const isCurrentUserB = b.id === userId;
-    const isHostA = a.id === sharedGameState.hostId;
-    const isHostB = b.id === sharedGameState.hostId;
-    const isCurrentPlayerA = a.id === sharedGameState.currentPlayerId;
-    const isCurrentPlayerB = b.id === sharedGameState.currentPlayerId;
+  const gamePlayers = React.useMemo(() =>
+    Object.values(sharedGameState.playerStates || {}),
+    [sharedGameState.playerStates]
+  );
 
-    if (isCurrentUserA !== isCurrentUserB) return isCurrentUserA ? -1 : 1;
-    if (isHostA !== isHostB) return isHostA ? -1 : 1;
-    if (isCurrentPlayerA !== isCurrentPlayerB) return isCurrentPlayerA ? -1 : 1;
-    return 0;
-  });
+  const sortedPlayers = React.useMemo(() => {
+    return [...gamePlayers].sort((psA, psB) => {
+      const isCurrentUserA = psA.userId === userId;
+      const isCurrentUserB = psB.userId === userId;
+      const isHostA = psA.userId === sharedGameState.hostId;
+      const isHostB = psB.userId === sharedGameState.hostId;
+      const isCurrentPlayerA = psA.userId === sharedGameState.currentPlayerId && sharedGameState.gameStarted && !sharedGameState.gameEnded;
+      const isCurrentPlayerB = psB.userId === sharedGameState.currentPlayerId && sharedGameState.gameStarted && !sharedGameState.gameEnded;
+
+      if (isCurrentUserA !== isCurrentUserB) return isCurrentUserA ? -1 : 1;
+      if (isHostA !== isHostB) return isHostA ? -1 : 1;
+      if (isCurrentPlayerA !== isCurrentPlayerB) return isCurrentPlayerA ? -1 : 1;
+
+      const nameA = psA.name || psA.userName || '';
+      const nameB = psB.name || psB.userName || '';
+      return nameA.localeCompare(nameB);
+    });
+  }, [gamePlayers, userId, sharedGameState.hostId, sharedGameState.currentPlayerId, sharedGameState.gameStarted, sharedGameState.gameEnded]);
 
   return (
     <Paper
@@ -72,7 +87,8 @@ const PlayerList = ({ members, sharedGameState, userId, t }) => {
         display: 'flex',
         flexDirection: 'column',
         overflow: 'hidden',
-        borderRadius: 2
+        borderRadius: 2,
+        bgcolor: theme.palette.background.paper,
       }}
     >
       <Box sx={{
@@ -95,7 +111,7 @@ const PlayerList = ({ members, sharedGameState, userId, t }) => {
         </Box>
         <Chip
           size="small"
-          label={members.length}
+          label={gamePlayers.length}
           color="primary"
           sx={{
             fontWeight: 'bold',
@@ -105,25 +121,18 @@ const PlayerList = ({ members, sharedGameState, userId, t }) => {
       </Box>
 
       <Box sx={{
-        overflow: 'auto',
+        overflowY: 'auto',
         flexGrow: 1,
         p: 1,
         display: 'flex',
         flexDirection: 'column',
-        gap: 1
+        gap: 1,
+        pr: { xs: 1, sm: 2 }
       }}>
-        {sortedMembers.map(member => {
-          const playerStatus = sharedGameState.playerStates[member.id] || {
-            remainingAttempts: 6,
-            won: false,
-            eliminated: false,
-            userName: member.username,
-            name: member.name
-          };
-
-          const isCurrent = member.id === userId;
-          const isGameHost = member.id === sharedGameState.hostId;
-          const isCurrentTurnPlayer = member.id === sharedGameState.currentPlayerId &&
+        {sortedPlayers.map(playerStatus => {
+          const isCurrent = playerStatus.userId === userId;
+          const isGameHost = playerStatus.userId === sharedGameState.hostId;
+          const isCurrentTurnPlayer = playerStatus.userId === sharedGameState.currentPlayerId &&
                                     sharedGameState.gameStarted &&
                                     !sharedGameState.gameEnded;
 
@@ -149,8 +158,9 @@ const PlayerList = ({ members, sharedGameState, userId, t }) => {
             );
           }
 
-          const displayName = playerStatus.userName || member.username || t("playerList.undefinedPlayer");
+          const displayName = playerStatus.userName || playerStatus.name || t("playerList.undefinedPlayer");
           const initial = displayName.charAt(0).toUpperCase();
+          const avatarSrc = playerStatus.avatar || undefined;
 
           const avatarElement = isGameHost ? (
             <Badge
@@ -163,45 +173,46 @@ const PlayerList = ({ members, sharedGameState, userId, t }) => {
                       fontSize: 14,
                       color: theme.palette.warning.main,
                       bgcolor: theme.palette.background.paper,
-                      borderRadius: '50%'
+                      borderRadius: '50%',
+                      border: `1px solid ${theme.palette.background.paper}`
                     }}
                   />
                 </Tooltip>
               }
             >
               <Avatar
-                src={member.avatar || undefined}
+                src={avatarSrc}
                 sx={{
                   width: 32,
                   height: 32,
                   fontSize: '1rem',
                   fontWeight: 'bold',
                   border: isCurrent ? `2px solid ${theme.palette.primary.main}` : 'none',
-                  bgcolor: getAvatarColor(member.id, theme)
+                  bgcolor: getAvatarColor(playerStatus.userId, theme),
                 }}
               >
-                {!member.avatar && initial} {/* Corrected to display initial */}
+                {!avatarSrc && initial}
               </Avatar>
             </Badge>
           ) : (
             <Avatar
-              src={member.avatar || undefined}
+              src={avatarSrc}
               sx={{
                 width: 32,
                 height: 32,
                 fontSize: '1rem',
                 fontWeight: 'bold',
                 border: isCurrent ? `2px solid ${theme.palette.primary.main}` : 'none',
-                bgcolor: getAvatarColor(member.id, theme)
+                bgcolor: getAvatarColor(playerStatus.userId, theme),
               }}
             >
-              {!member.avatar && initial} {/* Corrected to display initial */}
+              {!avatarSrc && initial}
             </Avatar>
           );
 
           return (
             <Box
-              key={member.id}
+              key={playerStatus.userId}
               sx={{
                 display: 'flex',
                 alignItems: 'center',
@@ -286,7 +297,7 @@ const PlayerList = ({ members, sharedGameState, userId, t }) => {
                         height: 16,
                         borderRadius: '50%',
                         bgcolor: theme.palette.primary.main,
-                        color: '#fff',
+                        color: theme.palette.primary.contrastText,
                         fontSize: '0.6rem',
                         fontWeight: 'bold',
                         display: 'flex',
@@ -307,21 +318,23 @@ const PlayerList = ({ members, sharedGameState, userId, t }) => {
                   flexWrap: 'wrap'
                 }}>
                   {statusChip || (
-                    <Box sx={{
-                      color: theme.palette.text.secondary,
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 0.5,
-                      bgcolor: theme.palette.action.hover,
-                      px: 1,
-                      py: 0.25,
-                      borderRadius: 1,
-                      fontSize: '0.75rem',
-                    }}>
-                      <Box component="span" sx={{ fontWeight: 'medium' }}>
-                        {t("playerList.attemptsLeft", { count: playerStatus.remainingAttempts })}
-                      </Box>
-                    </Box>
+                    sharedGameState.gameStarted && !playerStatus.won && !playerStatus.eliminated && (
+                       <Box sx={{
+                          color: theme.palette.text.secondary,
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 0.5,
+                          bgcolor: theme.palette.action.hover,
+                          px: 1,
+                          py: 0.25,
+                          borderRadius: 1,
+                          fontSize: '0.75rem',
+                       }}>
+                          <Box component="span" sx={{ fontWeight: 'medium' }}>
+                             {t("playerList.attemptsLeft", { count: playerStatus.remainingAttempts })}
+                          </Box>
+                       </Box>
+                    )
                   )}
 
                   {isCurrentTurnPlayer && (
@@ -341,9 +354,9 @@ const PlayerList = ({ members, sharedGameState, userId, t }) => {
 
               <Box sx={{
                 display: {
-                  xs: playerStatus.remainingAttempts < 6 ? 'block' : 'none',
-                  sm: 'block'
-                }
+                  xs: playerStatus.remainingAttempts < 6 && !playerStatus.won && !playerStatus.eliminated ? 'block' : 'none',
+                  sm: !playerStatus.won && !playerStatus.eliminated ? 'block' : 'none'
+                },
               }}>
                 <HangmanDrawing
                   incorrectGuesses={6 - playerStatus.remainingAttempts}

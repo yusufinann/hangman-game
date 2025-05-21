@@ -51,11 +51,10 @@ const Hangman = ({ lobbyCode, lobbyInfo, members, socket, user, hangmanSoundEnab
     won: false,
     eliminated: false,
   });
-
+  const [activeGameBlockError, setActiveGameBlockError] = useState(null);
   const [currentWordGuessInput, setCurrentWordGuessInput] = useState("");
-
   const [isGameEndModalVisible, setIsGameEndModalVisible] = useState(false);
-  const prevGameEndedState = useRef(undefined); 
+  const prevGameEndedState = useRef(undefined);
 
   const {
     notifications,
@@ -64,6 +63,7 @@ const Hangman = ({ lobbyCode, lobbyInfo, members, socket, user, hangmanSoundEnab
     clearAllNotifications,
   } = useGameNotifications();
 
+ 
   useWebSocketHandler({
     socket,
     lobbyCode,
@@ -79,7 +79,8 @@ const Hangman = ({ lobbyCode, lobbyInfo, members, socket, user, hangmanSoundEnab
     members,
     clearAllNotifications,
     playSoundCallback: playSound,
-    t
+    t,
+    setActiveGameBlockError
   });
 
   const turnTimeLeft = useTurnTimer(
@@ -139,6 +140,9 @@ const Hangman = ({ lobbyCode, lobbyInfo, members, socket, user, hangmanSoundEnab
     return playerState?.userName || "Bilinmeyen";
   }, [members, sharedGameState.currentPlayerId, sharedGameState.playerStates]);
 
+  const lobbyCreatorName =
+    lobbyCreatorDetails?.name || lobbyCreatorDetails?.username || t("Unknown");
+
   const shouldShowWaitingOrEndedScreen = useMemo(() => {
     if (gamePhase === "waiting" && !sharedGameState.gameStarted) {
       return true;
@@ -154,6 +158,7 @@ const Hangman = ({ lobbyCode, lobbyInfo, members, socket, user, hangmanSoundEnab
     isGameEndModalVisible,
   ]);
 
+
   useEffect(() => {
     if (user?.id && lobbyInfo?.createdBy) {
       setIsHost(user.id === lobbyInfo.createdBy);
@@ -161,45 +166,89 @@ const Hangman = ({ lobbyCode, lobbyInfo, members, socket, user, hangmanSoundEnab
   }, [user?.id, lobbyInfo?.createdBy]);
 
   useEffect(() => {
-  
     if (sharedGameState.hostId !== null && prevGameEndedState.current === undefined) {
       prevGameEndedState.current = sharedGameState.gameEnded;
     }
 
-   
     if (
       gamePhase === "ended" &&
-      sharedGameState.gameEnded && 
-      prevGameEndedState.current === false && 
+      sharedGameState.gameEnded &&
+      prevGameEndedState.current === false &&
       sharedGameState.rankings &&
       sharedGameState.rankings.length > 0 &&
       currentUserIsInRankings
     ) {
       setIsGameEndModalVisible(true);
     }
-    if (sharedGameState.hostId !== null) { 
+    if (sharedGameState.hostId !== null) {
         prevGameEndedState.current = sharedGameState.gameEnded;
     }
-
-
   }, [
     gamePhase,
     sharedGameState.gameEnded,
     sharedGameState.rankings,
-    sharedGameState.hostId, 
+    sharedGameState.hostId,
     currentUserIsInRankings,
   ]);
 
+  const handleCloseNotification = (id) => {
+    setNotifications((prev) => prev.filter((notif) => notif.id !== id));
+  };
+ 
+  if (activeGameBlockError) {
+    return (
+      <GameContainer
+        sx={{
+          display: "flex",
+          flexDirection: "column",
+          height: "100%",
+          width: "100%",
+          overflow: "hidden",
+          justifyContent: "center",
+          alignItems: "center",
+        }}
+      >
+        <HangmanWaitingScreen
+          isHost={isHost}
+          members={members}
+          lobbyInfo={lobbyInfo}
+          user={user}
+          sharedGameState={sharedGameState}
+          t={t}
+          activeGameBlockError={activeGameBlockError}
+          lobbyCreatorName={lobbyCreatorName} 
+        />
+        <NotificationArea
+          notifications={notifications}
+          onCloseNotification={handleCloseNotification}
+        />
+      </GameContainer>
+    );
+  }
 
   if (gamePhase === "loading" || !user?.id || (gamePhase !== "error" && sharedGameState.hostId === null && (sharedGameState.gameStarted || sharedGameState.gameEnded))) {
-    return <HangmanLoading t={t} />;
+    return (
+      <>
+        <HangmanLoading t={t} />
+        <NotificationArea
+          notifications={notifications}
+          onCloseNotification={handleCloseNotification}
+        />
+      </>
+    );
   }
   if (gamePhase === "error") {
-    return <HangmanError t={t} />;
+    return (
+      <>
+        <HangmanError t={t} />
+        <NotificationArea
+          notifications={notifications}
+          onCloseNotification={handleCloseNotification}
+        />
+      </>
+    );
   }
 
-  const lobbyCreatorName =
-    lobbyCreatorDetails?.name || lobbyCreatorDetails?.username || t("Unknown");
 
   const handleOpenHostSetup = () => {
     if (isHost && socket) {
@@ -220,7 +269,6 @@ const Hangman = ({ lobbyCode, lobbyInfo, members, socket, user, hangmanSoundEnab
       addNotification(t("selectCategoryError"), "error");
       return;
     }
-    
     socket.send(
       JSON.stringify({
         type: "HANGMAN_START",
@@ -275,9 +323,6 @@ const Hangman = ({ lobbyCode, lobbyInfo, members, socket, user, hangmanSoundEnab
     setIsGameEndModalVisible(false);
   };
 
-  const handleCloseNotification = (id) => {
-    setNotifications((prev) => prev.filter((notif) => notif.id !== id));
-  };
 
   return (
     <>
@@ -345,7 +390,6 @@ const Hangman = ({ lobbyCode, lobbyInfo, members, socket, user, hangmanSoundEnab
               }}
             >
               <PlayerList
-                members={members}
                 sharedGameState={sharedGameState}
                 userId={user.id}
                 t={t}
@@ -353,7 +397,7 @@ const Hangman = ({ lobbyCode, lobbyInfo, members, socket, user, hangmanSoundEnab
             </Box>
           </Box>
         ) : (
-          (gamePhase === "waiting" || (gamePhase === "ended" && !isGameEndModalVisible)) && (
+          shouldShowWaitingOrEndedScreen && (
             <GameControls
               isHost={isHost}
               gamePhase={gamePhase}
@@ -364,7 +408,7 @@ const Hangman = ({ lobbyCode, lobbyInfo, members, socket, user, hangmanSoundEnab
           )
         )}
 
-        {shouldShowWaitingOrEndedScreen && (
+        {shouldShowWaitingOrEndedScreen && !activeGameBlockError && (
           <HangmanWaitingScreen
             isHost={isHost}
             members={members}
@@ -374,6 +418,7 @@ const Hangman = ({ lobbyCode, lobbyInfo, members, socket, user, hangmanSoundEnab
             onOpenHostSetup={handleOpenHostSetup}
             lobbyCreatorName={lobbyCreatorName}
             t={t}
+            activeGameBlockError={null}
           />
         )}
 
