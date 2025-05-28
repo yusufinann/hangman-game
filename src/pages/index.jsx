@@ -5,7 +5,7 @@ import {
 } from "@mui/material";
 import { useGameNotifications } from "../hooks/useGameNotifications";
 import { useTurnTimer } from "../hooks/useTurnTimer";
-import { useWebSocketHandler } from "../hooks/useWebSocketHandler";
+import { useWebSocketHandler } from "../hooks/useWebSocketHandler"; // Ensure this path is correct
 import { GameContainer } from "./components/StyledComponents";
 import GameControls from "./components/GameControls";
 import HostSetupModal from "./components/HostSetupModal";
@@ -21,18 +21,29 @@ import GameEndModalManager from "./components/GameEndModalManager/GameEndModalMa
 
 const Hangman = ({ lobbyCode, lobbyInfo, members, socket, user, hangmanSoundEnabled, toggleSound, t}) => {
   const [isHost, setIsHost] = useState(false);
-  const [gamePhase, setGamePhase] = useState("loading");
+  const [gamePhase, setGamePhase] = useState("loading"); // loading, waiting, countdown, playing, ended, error
   const [hostSetupData, setHostSetupData] = useState({
+    languageMode: "en", // Default or load from previous settings if desired
+    availableLanguages: [],
+    wordSourceMode: "server", // 'server' or 'host'
     category: "",
     availableCategories: [],
+    customWord: "",
+    customCategory: "",
   });
   const { playSound } = useHangmanSound(hangmanSoundEnabled);
   const [showHostSetupModal, setShowHostSetupModal] = useState(false);
+  const [isStartingGame, setIsStartingGame] = useState(false);
   const [countdown, setCountdown] = useState(null);
 
   const [sharedGameState, setSharedGameState] = useState({
+    lobbyCode: lobbyCode,
+    lobbyName: lobbyInfo?.name || "",
     maskedWord: "",
     category: "",
+    languageMode: 'en',
+    wordSourceMode: 'server',
+    isHostParticipant: true,
     gameStarted: false,
     gameEnded: false,
     currentPlayerId: null,
@@ -50,6 +61,8 @@ const Hangman = ({ lobbyCode, lobbyInfo, members, socket, user, hangmanSoundEnab
     isMyTurn: false,
     won: false,
     eliminated: false,
+    isHost: false,
+    isParticipating: true,
   });
   const [currentWordGuessInput, setCurrentWordGuessInput] = useState("");
   const [isGameEndModalVisible, setIsGameEndModalVisible] = useState(false);
@@ -62,7 +75,6 @@ const Hangman = ({ lobbyCode, lobbyInfo, members, socket, user, hangmanSoundEnab
     clearAllNotifications,
   } = useGameNotifications();
 
- 
   useWebSocketHandler({
     socket,
     lobbyCode,
@@ -72,12 +84,12 @@ const Hangman = ({ lobbyCode, lobbyInfo, members, socket, user, hangmanSoundEnab
     setCountdown,
     setSharedGameState,
     setMyPlayerSpecificState,
+    hostSetupData, 
     setHostSetupData,
     gamePhase,
     clearAllNotifications,
     playSoundCallback: playSound,
     t,
-    lobbyName: lobbyInfo?.name, 
   });
 
   const turnTimeLeft = useTurnTimer(
@@ -88,38 +100,34 @@ const Hangman = ({ lobbyCode, lobbyInfo, members, socket, user, hangmanSoundEnab
     user?.id
   );
 
+  const currentUserIsParticipating = useMemo(() => {
+    if (!user?.id || !sharedGameState.playerStates[user.id]) return false;
+    return sharedGameState.playerStates[user.id].isParticipating;
+  }, [sharedGameState.playerStates, user?.id]);
+
+
   const currentUserIsInRankings = useMemo(() => {
-    if (!user?.id || !sharedGameState.rankings) {
+    if (!user?.id || !sharedGameState.rankings || !currentUserIsParticipating) {
       return false;
     }
     return sharedGameState.rankings.some(
       (player) => player.playerId === user.id
     );
-  }, [sharedGameState.rankings, user?.id]);
+  }, [sharedGameState.rankings, user?.id, currentUserIsParticipating]);
+
 
   const myActualRemainingAttempts = useMemo(() => {
-    const myPlayerData = user?.id ? sharedGameState.playerStates[user.id] : null;
-    return myPlayerData
-      ? myPlayerData.remainingAttempts
-      : myPlayerSpecificState.eliminated
-      ? 0
-      : 6;
-  }, [
-    sharedGameState.playerStates,
-    user?.id,
-    myPlayerSpecificState.eliminated,
-  ]);
+    return myPlayerSpecificState.remainingAttempts;
+  }, [myPlayerSpecificState.remainingAttempts]);
 
   const amIReallyPlaying = useMemo(() => {
-    if (!user?.id) return false;
-    const myPlayerData = sharedGameState.playerStates[user.id];
-    if (!sharedGameState.gameStarted || sharedGameState.gameEnded) return false;
-    if (myPlayerSpecificState.won || myPlayerSpecificState.eliminated)
-      return false;
-    if (myPlayerData && (myPlayerData.won || myPlayerData.eliminated))
-      return false;
-    return true;
-  }, [sharedGameState, myPlayerSpecificState, user?.id]);
+    return myPlayerSpecificState.isParticipating &&
+           !myPlayerSpecificState.won &&
+           !myPlayerSpecificState.eliminated &&
+           sharedGameState.gameStarted &&
+           !sharedGameState.gameEnded;
+  }, [myPlayerSpecificState, sharedGameState.gameStarted, sharedGameState.gameEnded]);
+
 
   const lobbyCreatorDetails = useMemo(
     () => members.find((m) => m.id === lobbyInfo?.createdBy),
@@ -127,30 +135,28 @@ const Hangman = ({ lobbyCode, lobbyInfo, members, socket, user, hangmanSoundEnab
   );
 
   const currentPlayerTurnName = useMemo(() => {
-    if (!sharedGameState.currentPlayerId) return t('hangman.unknownPlayer', "Bilinmeyen");
-    const playerInMembers = members.find(
-      (m) => m.id === sharedGameState.currentPlayerId
-    );
-    if (playerInMembers) return playerInMembers.name || playerInMembers.username;
-    
+    if (!sharedGameState.currentPlayerId) return t('hangman.unknownPlayer', "Unknown");
     const playerInState = sharedGameState.playerStates[sharedGameState.currentPlayerId];
-    return playerInState?.name || playerInState?.userName || t('hangman.unknownPlayer', "Bilinmeyen");
-  }, [members, sharedGameState.currentPlayerId, sharedGameState.playerStates, t]);
+    return playerInState?.name || playerInState?.userName || t('hangman.unknownPlayer', "Unknown");
+  }, [sharedGameState.currentPlayerId, sharedGameState.playerStates, t]);
 
   const lobbyCreatorName =
-    lobbyCreatorDetails?.name || lobbyCreatorDetails?.username || t("hangman.unknownHost", "Bilinmeyen Host");
+    lobbyCreatorDetails?.name || lobbyCreatorDetails?.username || t("hangman.unknownHost", "Unknown Host");
 
   useEffect(() => {
     if (user?.id && lobbyInfo?.createdBy) {
-      setIsHost(user.id === lobbyInfo.createdBy);
+      const isUserHost = user.id === lobbyInfo.createdBy;
+      setIsHost(isUserHost);
+      setMyPlayerSpecificState(prev => ({ ...prev, isHost: isUserHost }));
     }
   }, [user?.id, lobbyInfo?.createdBy]);
-  
+
   useEffect(() => {
-    if (socket && socket.readyState === WebSocket.OPEN && user?.id && isHost && gamePhase !== "playing" && gamePhase !== "countdown") {
+    // Fetch initial languages if host and modal is about to be shown or game not started
+    if (socket && socket.readyState === WebSocket.OPEN && isHost && hostSetupData.availableLanguages.length === 0 && (showHostSetupModal || (gamePhase !== "playing" && gamePhase !== "countdown"))) {
         socket.send(JSON.stringify({ type: "HANGMAN_GET_CATEGORIES" }));
     }
-  }, [socket, user?.id, isHost, gamePhase]);
+  }, [socket, isHost, showHostSetupModal, gamePhase, hostSetupData.availableLanguages.length]);
 
 
   useEffect(() => {
@@ -161,15 +167,15 @@ const Hangman = ({ lobbyCode, lobbyInfo, members, socket, user, hangmanSoundEnab
     if (
       gamePhase === "ended" &&
       sharedGameState.gameEnded &&
-      prevGameEndedState.current === false && // Sadece oyun yeni bittiğinde modalı göster
+      prevGameEndedState.current === false &&
       sharedGameState.rankings &&
       sharedGameState.rankings.length > 0 &&
-      currentUserIsInRankings // Sadece sıralamada olan kullanıcılar için
+      currentUserIsInRankings
     ) {
       setIsGameEndModalVisible(true);
     }
-  
-    if (sharedGameState.hostId !== null) { 
+
+    if (sharedGameState.hostId !== null) {
         prevGameEndedState.current = sharedGameState.gameEnded;
     }
   }, [
@@ -183,7 +189,7 @@ const Hangman = ({ lobbyCode, lobbyInfo, members, socket, user, hangmanSoundEnab
   const handleCloseNotification = (id) => {
     setNotifications((prev) => prev.filter((notif) => notif.id !== id));
   };
- 
+
   if (gamePhase === "loading" || !user?.id || (gamePhase !== "error" && !sharedGameState.hostId && (sharedGameState.gameStarted || sharedGameState.gameEnded))) {
     return (
       <>
@@ -200,7 +206,7 @@ const Hangman = ({ lobbyCode, lobbyInfo, members, socket, user, hangmanSoundEnab
     const lastError = notifications.slice().reverse().find(n => n.type === 'error');
     return (
       <>
-        <HangmanError t={t} message={lastError?.message || t('errors.genericGameError', "Bir hata oluştu. Lütfen sayfayı yenileyin.")} />
+        <HangmanError t={t} message={lastError?.message || t('errors.genericGameError', "An error occurred. Please refresh the page.")} />
         <NotificationArea
           notifications={notifications}
           onCloseNotification={handleCloseNotification}
@@ -210,43 +216,86 @@ const Hangman = ({ lobbyCode, lobbyInfo, members, socket, user, hangmanSoundEnab
   }
 
   const handleOpenHostSetup = () => {
-    if (isHost && socket) {
-      socket.send(JSON.stringify({ type: "HANGMAN_GET_CATEGORIES" }));
+    if (isHost && socket && socket.readyState === WebSocket.OPEN) {
+      if (hostSetupData.availableLanguages.length === 0) {
+        socket.send(JSON.stringify({ type: "HANGMAN_GET_CATEGORIES" }));
+      } else if (hostSetupData.languageMode && hostSetupData.availableCategories.length === 0) {
+        socket.send(JSON.stringify({ type: "HANGMAN_GET_LANGUAGE_CATEGORIES", language: hostSetupData.languageMode }));
+      }
     }
     setShowHostSetupModal(true);
   };
 
-  const handleHostSetupChange = (e) => {
+  const handleHostSetupChange = (e, isLanguageChange = false) => {
     const { name, value } = e.target;
-    setHostSetupData((prev) => ({ ...prev, [name]: value }));
+    setHostSetupData((prev) => {
+        const newState = { ...prev, [name]: value };
+        if (isLanguageChange) {
+            newState.category = ""; // Reset category if language changes
+            newState.availableCategories = []; // Reset categories, will be fetched
+        }
+        return newState;
+    });
   };
 
   const handleStartGame = () => {
-    if (!socket || !isHost) return;
-    const { category } = hostSetupData;
-    if (!category) {
-      addNotification(t("hangman.selectCategoryError", "Lütfen bir kategori seçin."), "error");
+    if (!socket || !isHost || isStartingGame) return;
+
+    const { languageMode, wordSourceMode, category, customWord,customCategory  } = hostSetupData;
+
+    if (!languageMode) {
+      addNotification(t("hangman.selectLanguageError", "Please select a language."), "error");
       return;
     }
-    socket.send(
-      JSON.stringify({
+    if (!wordSourceMode) {
+      addNotification(t("hangman.selectWordSourceError", "Please select a word source."), "error");
+      return;
+    }
+
+    let payload = {
         type: "HANGMAN_START",
         lobbyCode,
-        category,
-      })
-    );
+        languageMode,
+        wordSourceMode,
+    };
+
+    if (wordSourceMode === 'server') {
+        if (!category) {
+            addNotification(t("hangman.selectCategoryError", "Please select a category."), "error");
+            setIsStartingGame(false); 
+            return;
+        }
+        payload.category = category;
+    } else if (wordSourceMode === 'host') {
+        const trimmedCustomWord = customWord.trim();
+        if (trimmedCustomWord.length < 2 || trimmedCustomWord.length > 25) {
+             addNotification(t("hangman.customWordLengthError", "Custom word must be between 2 and 25 characters."), "error");
+             setIsStartingGame(false);
+            return;
+        }
+        payload.customWord = trimmedCustomWord;
+        // customCategory backend'e gönderiliyor
+        if (customCategory && customCategory.trim()) {
+            payload.customCategory = customCategory.trim();
+        }
+    }
+    setIsStartingGame(true);
+    socket.send(JSON.stringify(payload));
     setShowHostSetupModal(false);
+    // Server will send countdown, no need to set gamePhase here immediately
+    // Reset isStartingGame after a short delay or on game_started/error message
+    setTimeout(() => setIsStartingGame(false), 3000); // Basic timeout
   };
 
   const handleLetterGuess = (letter) => {
-    if (!socket || !myPlayerSpecificState.isMyTurn || sharedGameState.gameEnded || myPlayerSpecificState.eliminated || myPlayerSpecificState.won)
-      return;
-    const l = letter.toLowerCase();
+    if (!socket || !myPlayerSpecificState.isMyTurn || !amIReallyPlaying) return;
+
+    const l = letter.toLowerCase(); // Backend expects lowercase
     if (
       myPlayerSpecificState.correctGuesses.includes(l) ||
       myPlayerSpecificState.incorrectGuesses.includes(l)
     ) {
-      addNotification(t("hangman.alreadyGuessedLetterWarn", "Bu harfi zaten denediniz."), "warning", 2000);
+      addNotification(t("hangman.alreadyGuessedLetterWarn", "You've already tried this letter."), "warning", 2000);
       return;
     }
     socket.send(
@@ -256,15 +305,8 @@ const Hangman = ({ lobbyCode, lobbyInfo, members, socket, user, hangmanSoundEnab
 
   const handleWordSubmit = (e) => {
     e.preventDefault();
-    if (
-      !socket ||
-      !myPlayerSpecificState.isMyTurn ||
-      sharedGameState.gameEnded ||
-      myPlayerSpecificState.eliminated || 
-      myPlayerSpecificState.won ||
-      !currentWordGuessInput.trim()
-    )
-      return;
+    if (!socket || !myPlayerSpecificState.isMyTurn || !currentWordGuessInput.trim() || !amIReallyPlaying) return;
+
     socket.send(
       JSON.stringify({
         type: "HANGMAN_GUESS_WORD",
@@ -302,6 +344,8 @@ const Hangman = ({ lobbyCode, lobbyInfo, members, socket, user, hangmanSoundEnab
           hostSetupData={hostSetupData}
           onHostSetupChange={handleHostSetupChange}
           onStartGame={handleStartGame}
+          isStarting={isStartingGame}
+          socket={socket} // Pass socket to modal
           t={t}
         />
 
@@ -314,7 +358,7 @@ const Hangman = ({ lobbyCode, lobbyInfo, members, socket, user, hangmanSoundEnab
               alignItems: "stretch",
               overflow: "auto",
               flexDirection: { xs: "column", md: "row" },
-              p: { xs: 1, sm: 2 } 
+              p: { xs: 1, sm: 2 }
             }}
           >
             <Box
@@ -349,7 +393,8 @@ const Hangman = ({ lobbyCode, lobbyInfo, members, socket, user, hangmanSoundEnab
               sx={{
                 width: { xs: "100%", md: "30%" },
                 minHeight: {xs: '250px', md: 'auto'},
-                height: "100%", 
+                maxHeight: { xs: '300px', md: '100%' }, // Constrain height on XS
+                overflowY: 'auto', // Allow scrolling for player list if it overflows
               }}
             >
               <PlayerList
@@ -361,7 +406,7 @@ const Hangman = ({ lobbyCode, lobbyInfo, members, socket, user, hangmanSoundEnab
             </Box>
           </Box>
         ) : (
-          (gamePhase === "waiting" || gamePhase === "ended") && ( 
+          (gamePhase === "waiting" || gamePhase === "ended") && (
              <>
                 <GameControls
                   isHost={isHost}
@@ -383,12 +428,13 @@ const Hangman = ({ lobbyCode, lobbyInfo, members, socket, user, hangmanSoundEnab
              </>
           )
         )}
-        
+
         {gamePhase === "ended" &&
           sharedGameState.gameEnded &&
           !isGameEndModalVisible &&
-          !(sharedGameState.rankings && sharedGameState.rankings.length > 0) &&
-          !isHost && ( 
+          (!sharedGameState.rankings || sharedGameState.rankings.length === 0 || !currentUserIsInRankings) &&
+           (sharedGameState.wordSourceMode === 'server' || (sharedGameState.wordSourceMode === 'host' && !isHost)) && // Show only if participant or server mode
+            (
             <Alert
               severity="info"
               variant="standard"
@@ -402,7 +448,7 @@ const Hangman = ({ lobbyCode, lobbyInfo, members, socket, user, hangmanSoundEnab
                 textAlign: "center"
               }}
             >
-              {t("hangman.gameOverWaitHost", "Oyun bitti. Host yeni bir oyun başlatana kadar bekleyin.")}
+              {t("hangman.gameOverWaitHost", "Game Over. Wait for the host to start a new game.")}
             </Alert>
           )}
       </GameContainer>

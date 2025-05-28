@@ -13,7 +13,7 @@ import { useTheme } from '@mui/material/styles';
 import PersonIcon from '@mui/icons-material/Person';
 import EmojiEventsIcon from '@mui/icons-material/EmojiEvents';
 import StarIcon from '@mui/icons-material/Star';
-import HangmanDrawing from './GamePlayArea/HangmanDrawing';
+import HangmanDrawing from './GamePlayArea/HangmanDrawing'; // Doğru yolu kontrol edin
 
 function alpha(color, alphaValue) {
   if (!color) return undefined;
@@ -135,6 +135,7 @@ const PlayerList = ({ sharedGameState, userId, t }) => {
           const isCurrentTurnPlayer = playerStatus.userId === sharedGameState.currentPlayerId &&
                                     sharedGameState.gameStarted &&
                                     !sharedGameState.gameEnded;
+          const isHostObserver = isGameHost && sharedGameState.wordSourceMode === 'host' && !playerStatus.isParticipating;
 
           let statusChip = null;
           if (playerStatus.won) {
@@ -147,7 +148,7 @@ const PlayerList = ({ sharedGameState, userId, t }) => {
                 sx={{ height: 24, fontSize: '0.7rem' }}
               />
             );
-          } else if (playerStatus.eliminated) {
+          } else if (playerStatus.eliminated && !isHostObserver) {
             statusChip = (
               <Chip
                 size="small"
@@ -156,7 +157,18 @@ const PlayerList = ({ sharedGameState, userId, t }) => {
                 sx={{ height: 24, fontSize: '0.7rem' }}
               />
             );
+          } else if (isHostObserver) {
+             statusChip = (
+              <Chip
+                size="small"
+                label={t("playerList.status.hostObserver", "Host (Observing)")}
+                color="default"
+                variant="outlined"
+                sx={{ height: 24, fontSize: '0.7rem' }}
+              />
+            );
           }
+
 
           const displayName = playerStatus.userName || playerStatus.name || t("playerList.undefinedPlayer");
           const initial = displayName.charAt(0).toUpperCase();
@@ -337,7 +349,7 @@ const PlayerList = ({ sharedGameState, userId, t }) => {
                     )
                   )}
 
-                  {isCurrentTurnPlayer && (
+                  {isCurrentTurnPlayer && !isHostObserver &&(
                     <Chip
                       size="small"
                       label={t("playerList.currentTurnIndicator")}
@@ -352,17 +364,19 @@ const PlayerList = ({ sharedGameState, userId, t }) => {
                 </Box>
               </Box>
 
-              <Box sx={{
-                display: {
-                  xs: playerStatus.remainingAttempts < 6 && !playerStatus.won && !playerStatus.eliminated ? 'block' : 'none',
-                  sm: !playerStatus.won && !playerStatus.eliminated ? 'block' : 'none'
-                },
-              }}>
-                <HangmanDrawing
-                  incorrectGuesses={6 - playerStatus.remainingAttempts}
-                  size={isMobile ? 0.30 : 0.40}
-                />
-              </Box>
+              {!isHostObserver && (
+                <Box sx={{
+                  display: {
+                    xs: playerStatus.remainingAttempts < 6 && !playerStatus.won && !playerStatus.eliminated ? 'block' : 'none',
+                    sm: !playerStatus.won && !playerStatus.eliminated ? 'block' : 'none'
+                  },
+                }}>
+                  <HangmanDrawing
+                    incorrectGuesses={6 - playerStatus.remainingAttempts}
+                    size={isMobile ? 0.30 : 0.40}
+                  />
+                </Box>
+              )}
             </Box>
           );
         })}

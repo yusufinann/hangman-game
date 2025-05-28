@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react';
 
-export const useTurnTimer = (turnEndsAt, gameStarted, gameEnded, currentPlayerId, userId) => {
-  const [turnTimeLeft, setTurnTimeLeft] = useState(10);
+const DEFAULT_TURN_DURATION = 12;
+
+export const useTurnTimer = (turnEndsAt, gameStarted, gameEnded) => {
+  const [turnTimeLeft, setTurnTimeLeft] = useState(DEFAULT_TURN_DURATION); 
   const [turnTimerIntervalId, setTurnTimerIntervalId] = useState(null);
 
   useEffect(() => {
@@ -14,7 +16,7 @@ export const useTurnTimer = (turnEndsAt, gameStarted, gameEnded, currentPlayerId
       let newIntervalId;
       const updateTimer = () => {
         const now = Date.now();
-        const endTime = turnEndsAt;
+        const endTime = turnEndsAt; 
         const timeLeftSeconds = Math.max(0, Math.ceil((endTime - now) / 1000));
         setTurnTimeLeft(timeLeftSeconds);
 
@@ -32,9 +34,9 @@ export const useTurnTimer = (turnEndsAt, gameStarted, gameEnded, currentPlayerId
         setTurnTimerIntervalId(null);
       };
     } else {
-      setTurnTimeLeft(10);
+      setTurnTimeLeft(DEFAULT_TURN_DURATION); 
     }
-  }, [turnEndsAt, gameStarted, gameEnded, currentPlayerId, userId]);
+  }, [turnEndsAt, gameStarted, gameEnded,turnTimerIntervalId]);
 
   return turnTimeLeft;
 };

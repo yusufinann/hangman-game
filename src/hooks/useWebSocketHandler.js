@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 
 export const useWebSocketHandler = ({
   socket,
@@ -9,54 +9,72 @@ export const useWebSocketHandler = ({
   setCountdown,
   setSharedGameState,
   setMyPlayerSpecificState,
+  hostSetupData,
   setHostSetupData,
   gamePhase,
   clearAllNotifications,
   playSoundCallback,
-  lobbyName,
   t,
 }) => {
   useEffect(() => {
     if (!socket) return;
 
     const handleMessage = (event) => {
-      const data = JSON.parse(event.data);
-      const messageOriginLobbyCode = data.lobbyCode || data.sharedGameState?.lobbyCode;
-
-      if (data.type === "HANGMAN_ERROR" && data.activeGameInfo) {
-        if (messageOriginLobbyCode && messageOriginLobbyCode !== lobbyCode) {
-            addNotification(
-                t('errors.activeGameInOtherLobby', `Başka bir lobide (${data.activeGameInfo.lobbyCode}) aktif bir oyununuz var. Lütfen önce o oyundan çıkın veya bitirin.`, { lobbyCode: data.activeGameInfo.lobbyCode }),
-                "error",
-                10000
-            );
-            if (gamePhase === "loading") setGamePhase("error");
-            return;
-        } else if (messageOriginLobbyCode && messageOriginLobbyCode === lobbyCode) {
-            addNotification(`Hata: ${data.message}`, "error");
-            if (gamePhase === "loading" || gamePhase === "joining") setGamePhase("waiting");
-        }
-      } else if (messageOriginLobbyCode && messageOriginLobbyCode !== lobbyCode) {
-        console.warn(
-          `[WS Handler] Mesaj (${data.type}) lobi ${messageOriginLobbyCode} için geldi, ancak şu an lobi ${lobbyCode} görüntüleniyor. Mesaj yoksayıldı.`
-        );
+      let data;
+      try {
+        data = JSON.parse(event.data);
+      } catch (error) {
+        console.error("Failed to parse WebSocket message:", event.data, error);
         return;
       }
 
-      const updateGameStates = () => {
+      const messageOriginLobbyCode =
+        data.lobbyCode || data.sharedGameState?.lobbyCode;
+
+      if (
+        !(data.type === "HANGMAN_ERROR" && data.activeGameInfo) &&
+        messageOriginLobbyCode &&
+        messageOriginLobbyCode !== lobbyCode
+      ) {
+        return;
+      }
+
+      if (
+        data.type === "HANGMAN_ERROR" &&
+        data.activeGameInfo &&
+        data.activeGameInfo.lobbyCode !== lobbyCode
+      ) {
+        addNotification(
+          t(
+            "errors.activeGameInOtherLobby",
+            `You have an active game in another lobby (${data.activeGameInfo.lobbyCode}). Please leave or finish that game first.`,
+            { lobbyCode: data.activeGameInfo.lobbyCode }
+          ),
+          "error",
+          10000
+        );
+        if (gamePhase === "loading") setGamePhase("error");
+        return;
+      }
+
+      const updateGameStates = (isGameOver = false) => {
         if (data.sharedGameState) {
           setSharedGameState((prev) => ({
             ...prev,
             ...data.sharedGameState,
           }));
-          if (data.sharedGameState.gameEnded) setGamePhase("ended");
-          else if (data.sharedGameState.gameStarted) setGamePhase("playing");
-          else if (
+
+          if (isGameOver || data.sharedGameState.gameEnded) {
+            setGamePhase("ended");
+          } else if (data.sharedGameState.gameStarted) {
+            setGamePhase("playing");
+          } else if (
             gamePhase !== "countdown" &&
             gamePhase !== "playing" &&
             gamePhase !== "ended"
-          )
+          ) {
             setGamePhase("waiting");
+          }
         }
         if (data.playerSpecificGameState) {
           setMyPlayerSpecificState((prev) => ({
@@ -68,13 +86,16 @@ export const useWebSocketHandler = ({
 
       switch (data.type) {
         case "HANGMAN_ERROR":
-          if (!data.activeGameInfo) {
-            addNotification(`Hata: ${data.message}`, "error");
-          }
-          if (gamePhase === "loading" && !(data.activeGameInfo && data.activeGameInfo.lobbyCode !== lobbyCode)) {
-            setGamePhase(data.activeGameInfo ? "waiting" : "error");
-          } else if (data.activeGameInfo && data.activeGameInfo.lobbyCode === lobbyCode) {
-             setGamePhase("waiting");
+          addNotification(
+            t("errors.generalError", `Error: ${data.message}`, {
+              message: data.message,
+            }),
+            "error"
+          );
+          if (gamePhase === "loading") {
+            setGamePhase(
+              data.sharedGameState || data.activeGameInfo ? "waiting" : "error"
+            );
           }
           break;
 
@@ -85,62 +106,94 @@ export const useWebSocketHandler = ({
         case "HANGMAN_COUNTDOWN":
           setGamePhase("countdown");
           setCountdown(data.countdown);
-          playSoundCallback && playSoundCallback('countdown');
+          if (playSoundCallback) playSoundCallback("countdown");
           break;
 
         case "HANGMAN_PLAYER_JOINED":
           {
-            const playerName = data.player?.userName || t('notifications.a_player', 'Bir oyuncu');
+            const playerName =
+              data.player?.userName || t("notifications.a_player", "A player");
             addNotification(
-              t('notifications.playerJoined', { playerName: playerName })
+              t(
+                "notifications.playerJoined",
+                `${playerName} joined the game.`,
+                { playerName }
+              )
             );
           }
           updateGameStates();
           break;
 
         case "HANGMAN_GAME_STARTED":
-          addNotification(data.message || "Oyun başladı!", "success");
+          addNotification(
+            data.message || t("notifications.gameStarted", "Game started!"),
+            "success"
+          );
           setGamePhase("playing");
           setCountdown(null);
-          clearAllNotifications();
-          playSoundCallback && playSoundCallback('gameStart');
+          if (clearAllNotifications) clearAllNotifications();
+          if (playSoundCallback) playSoundCallback("gameStart");
           updateGameStates();
           break;
 
         case "HANGMAN_PLAYER_ELIMINATED":
           addNotification(
-            `${data.userName} ${t('notifications.eliminatedSuffix', 'elendi')}. ${t('notifications.reasonPrefix', 'Sebep')}: ${
-              data.reason === "no attempts left"
-                ? t('notifications.reasonNoAttempts', 'Hakları bitti')
-                : t('notifications.reasonWrongWordAttempts', 'Yanlış kelime & hak bitti')
-            }`,
+            t(
+              "notifications.playerEliminated",
+              `${data.userName} was eliminated. Reason: ${
+                data.reason === "no attempts left"
+                  ? t("notifications.reasonNoAttempts", "No attempts left")
+                  : t(
+                      "notifications.reasonWrongWordAttempts",
+                      "Incorrect word & no attempts left"
+                    )
+              }`,
+              {
+                userName: data.userName,
+                reason:
+                  data.reason === "no attempts left"
+                    ? t("notifications.reasonNoAttempts", "No attempts left")
+                    : t(
+                        "notifications.reasonWrongWordAttempts",
+                        "Incorrect word & no attempts left"
+                      ),
+              }
+            ),
             "warning"
           );
-          playSoundCallback && playSoundCallback('playerEliminated');
+          if (playSoundCallback) playSoundCallback("playerEliminated");
           updateGameStates();
           break;
 
         case "HANGMAN_PLAYER_TIMEOUT":
           addNotification(
-            t('notifications.playerTimeout', { userName: data.userName }),
+            t(
+              "notifications.playerTimeout",
+              `${data.userName}'s turn timed out.`,
+              { userName: data.userName }
+            ),
             "warning"
           );
-          playSoundCallback && playSoundCallback('playerTimeout');
+          if (playSoundCallback) playSoundCallback("playerTimeout");
           updateGameStates();
           break;
 
         case "HANGMAN_TURN_CHANGE":
           if (data.sharedGameState?.currentPlayerId === user?.id) {
-            playSoundCallback && playSoundCallback('turnChange');
+            if (playSoundCallback) playSoundCallback("turnChange");
           }
           updateGameStates();
           break;
 
         case "HANGMAN_RECONNECTED":
         case "HANGMAN_JOINED_SUCCESS":
+          addNotification(
+            data.message ||
+              t("notifications.connectedToGame", "Connected to game."),
+            "success"
+          );
           updateGameStates();
           break;
-
         case "HANGMAN_GUESS_MADE":
         case "HANGMAN_WORD_GUESS_ATTEMPT":
         case "HANGMAN_CURRENT_GAME_STATE":
@@ -150,7 +203,15 @@ export const useWebSocketHandler = ({
         case "HANGMAN_CATEGORIES":
           setHostSetupData((prev) => ({
             ...prev,
+            availableLanguages: data.categories,
+          }));
+          break;
+
+        case "HANGMAN_LANGUAGE_CATEGORIES":
+          setHostSetupData((prev) => ({
+            ...prev,
             availableCategories: data.categories,
+            category: prev.languageMode === data.language ? prev.category : "",
           }));
           break;
 
@@ -168,11 +229,14 @@ export const useWebSocketHandler = ({
             }));
           }
           addNotification(
-            data.correct ? t('notifications.correctLetter', 'Doğru harf!') : t('notifications.incorrectLetter', 'Yanlış harf.'),
+            data.correct
+              ? t("notifications.correctLetter", "Correct letter!")
+              : t("notifications.incorrectLetter", "Incorrect letter!"),
             data.correct ? "success" : "error",
             2500
           );
-          playSoundCallback && playSoundCallback(data.correct ? 'guessCorrect' : 'guessIncorrect');
+          if (playSoundCallback)
+            playSoundCallback(data.correct ? "guessCorrect" : "guessIncorrect");
           break;
 
         case "HANGMAN_WORD_GUESS_INCORRECT":
@@ -182,38 +246,40 @@ export const useWebSocketHandler = ({
               ...data.playerSpecificGameState,
             }));
           }
-          addNotification(data.message, "error");
-          updateGameStates();
+          addNotification(
+            data.message ||
+              t("notifications.incorrectWord", "Incorrect word guess."),
+            "error"
+          );
+          if (data.sharedGameState) updateGameStates(); // Sadece sharedGameState varsa güncelle
           break;
 
         case "HANGMAN_GAME_OVER_WINNER":
         case "HANGMAN_WORD_REVEALED_GAME_OVER":
         case "HANGMAN_GAME_OVER_NO_WINNERS":
         case "HANGMAN_GAME_OVER_HOST_ENDED":
-          playSoundCallback && playSoundCallback(
-            data.type === "HANGMAN_GAME_OVER_WINNER" || data.type === "HANGMAN_WORD_REVEALED_GAME_OVER"
-              ? 'gameOverWin'
-              : 'gameOverLose'
-          );
+          if (playSoundCallback)
+            playSoundCallback(
+              data.type === "HANGMAN_GAME_OVER_WINNER" ||
+                data.type === "HANGMAN_WORD_REVEALED_GAME_OVER"
+                ? "gameOverWin"
+                : "gameOverLose"
+            );
           addNotification(data.message, "info", 10000);
-          setGamePhase("ended");
-          if (data.sharedGameState) {
-            setSharedGameState((prev) => ({
-              ...prev,
-              ...data.sharedGameState,
-              gameEnded: true,
-              gameStarted: false,
-              word: data.word || prev.word,
-            }));
-          } else {
-             setSharedGameState(prev => ({ ...prev, gameEnded: true, gameStarted: false, word: data.word || prev.word }));
+          updateGameStates(true);
+          if (data.word) {
+            setSharedGameState((prev) => ({ ...prev, word: data.word }));
           }
           setMyPlayerSpecificState((prev) => ({ ...prev, isMyTurn: false }));
           break;
 
         case "HANGMAN_CATEGORY_ADDED":
           addNotification(data.message, "success");
-          if (data.newCategories) {
+          if (
+            data.newCategories &&
+            hostSetupData &&
+            data.language === hostSetupData.languageMode
+          ) {
             setHostSetupData((prev) => ({
               ...prev,
               availableCategories: data.newCategories,
@@ -223,12 +289,22 @@ export const useWebSocketHandler = ({
 
         case "HANGMAN_PLAYER_LEFT_PREGAME":
         case "HANGMAN_PLAYER_LEFT_MIDGAME":
-        case "HANGMAN_PLAYER_LEFT_LOBBY":
-        case "HANGMAN_PLAYER_DISCONNECTED_UPDATE":
           if (user && data.playerId && data.playerId !== user.id) {
             addNotification(
-              data.message ||
-                t('notifications.playerLeftOrDisconnected', {playerName: data.playerName || data.userName || t('notifications.a_player', 'Bir oyuncu')}),
+              t(
+                "notifications.playerLeftOrDisconnected",
+                `${
+                  data.playerName ||
+                  data.userName ||
+                  t("notifications.a_player", "A player")
+                } left or disconnected.`,
+                {
+                  playerName:
+                    data.playerName ||
+                    data.userName ||
+                    t("notifications.a_player", "A player"),
+                }
+              ),
               "warning"
             );
           }
@@ -251,20 +327,39 @@ export const useWebSocketHandler = ({
     setCountdown,
     setSharedGameState,
     setMyPlayerSpecificState,
+    hostSetupData,
     setHostSetupData,
     gamePhase,
     clearAllNotifications,
     playSoundCallback,
-    lobbyName,
     t,
   ]);
 
+  const initialRequestsSentMapRef = useRef({}); // { [lobbyCode]: true }
+
   useEffect(() => {
-    if (socket && socket.readyState === WebSocket.OPEN && user?.id) {
+    if (
+      socket &&
+      socket.readyState === WebSocket.OPEN &&
+      user?.id &&
+      lobbyCode &&
+      !initialRequestsSentMapRef.current[lobbyCode]
+    ) {
       socket.send(JSON.stringify({ type: "HANGMAN_JOIN", lobbyCode }));
-    } else if (socket && socket.readyState === WebSocket.OPEN && !user?.id && gamePhase === "loading") {
+      socket.send(JSON.stringify({ type: "HANGMAN_GET_CATEGORIES" }));
+      initialRequestsSentMapRef.current[lobbyCode] = true; // Bu lobi için gönderildi olarak işaretle
+    } else if (
+      socket &&
+      socket.readyState === WebSocket.OPEN &&
+      !user?.id &&
+      gamePhase === "loading"
+    ) {
+      // Kullanıcı bilgisi yoksa ve hala yükleme aşamasındaysa hata göster
       addNotification(
-        t('errors.userDataLoadFailed', "Kullanıcı bilgileri yüklenemedi, lütfen sayfayı yenileyin."),
+        t(
+          "errors.userDataLoadFailed",
+          "User data could not be loaded, please refresh the page."
+        ),
         "error"
       );
       setGamePhase("error");
@@ -273,9 +368,9 @@ export const useWebSocketHandler = ({
     socket,
     lobbyCode,
     user?.id,
+    gamePhase,
     addNotification,
     setGamePhase,
-    gamePhase,
     t,
   ]);
 };
