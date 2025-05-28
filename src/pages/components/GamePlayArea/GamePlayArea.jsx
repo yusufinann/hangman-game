@@ -2,8 +2,8 @@ import React from 'react';
 import { Box, Typography, Paper, TextField, Chip, Button, Alert } from '@mui/material';
 import HangmanDrawing from './HangmanDrawing';
 import AlphabetGrid from './AlphabetGrid';
-import { TimerBar } from './StyledComponents';
-import GameControls from './GameControls';
+import { TimerBar } from '../StyledComponents';
+import GameControls from '../GameControls';
 import VolumeButton from './VolumeButton';
 
 const GamePlayArea = ({
@@ -182,7 +182,7 @@ const GamePlayArea = ({
                   onGuess={onLetterGuess}
                   disabledLetters={[...myPlayerSpecificState.correctGuesses, ...myPlayerSpecificState.incorrectGuesses]}
                   isMyTurn={myPlayerSpecificState.isMyTurn}
-                  t={t} // Pass t to AlphabetGrid if it also needs translation
+                  t={t} 
                 />
               </Box>
             </Box>

@@ -13,7 +13,7 @@ import { useTheme } from '@mui/material/styles';
 import PersonIcon from '@mui/icons-material/Person';
 import EmojiEventsIcon from '@mui/icons-material/EmojiEvents';
 import StarIcon from '@mui/icons-material/Star';
-import HangmanDrawing from './HangmanDrawing';
+import HangmanDrawing from './GamePlayArea/HangmanDrawing';
 
 function alpha(color, alphaValue) {
   if (!color) return undefined;

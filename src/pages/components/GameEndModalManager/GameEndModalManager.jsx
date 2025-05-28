@@ -2,7 +2,7 @@ import { Modal, Box } from "@mui/material";
 import GameEndScreen from "./GameEndScreen"; 
 
 const GameEndModalManager = ({
-  show, 
+  show,
   sharedGameState,
   onClose,
   t,
@@ -19,10 +19,9 @@ const GameEndModalManager = ({
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        p: 1,
       }}
     >
-      <Box sx={{ outline: "none" }}>
+      <Box> 
         <GameEndScreen
           sharedGameState={sharedGameState}
           onClose={onClose}

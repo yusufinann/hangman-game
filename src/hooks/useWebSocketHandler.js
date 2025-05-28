@@ -13,6 +13,7 @@ export const useWebSocketHandler = ({
   gamePhase,
   clearAllNotifications,
   playSoundCallback,
+  lobbyName,
   t,
 }) => {
   useEffect(() => {
@@ -30,12 +31,10 @@ export const useWebSocketHandler = ({
                 10000
             );
             if (gamePhase === "loading") setGamePhase("error");
-            return; 
+            return;
         } else if (messageOriginLobbyCode && messageOriginLobbyCode === lobbyCode) {
             addNotification(`Hata: ${data.message}`, "error");
             if (gamePhase === "loading" || gamePhase === "joining") setGamePhase("waiting");
-             // Bu durumda mesaj mevcut lobi için ve oyun zaten başlamış gibi bir durum olabilir.
-             // Kullanıcıyı bekleme ekranına yönlendirmek mantıklı.
         }
       } else if (messageOriginLobbyCode && messageOriginLobbyCode !== lobbyCode) {
         console.warn(
@@ -69,7 +68,7 @@ export const useWebSocketHandler = ({
 
       switch (data.type) {
         case "HANGMAN_ERROR":
-          if (!data.activeGameInfo) { 
+          if (!data.activeGameInfo) {
             addNotification(`Hata: ${data.message}`, "error");
           }
           if (gamePhase === "loading" && !(data.activeGameInfo && data.activeGameInfo.lobbyCode !== lobbyCode)) {
@@ -203,11 +202,10 @@ export const useWebSocketHandler = ({
               ...prev,
               ...data.sharedGameState,
               gameEnded: true,
-              gameStarted: false, 
-              word: data.word || prev.word, 
+              gameStarted: false,
+              word: data.word || prev.word,
             }));
           } else {
-            
              setSharedGameState(prev => ({ ...prev, gameEnded: true, gameStarted: false, word: data.word || prev.word }));
           }
           setMyPlayerSpecificState((prev) => ({ ...prev, isMyTurn: false }));
@@ -222,7 +220,7 @@ export const useWebSocketHandler = ({
             }));
           }
           break;
-        
+
         case "HANGMAN_PLAYER_LEFT_PREGAME":
         case "HANGMAN_PLAYER_LEFT_MIDGAME":
         case "HANGMAN_PLAYER_LEFT_LOBBY":
@@ -233,13 +231,6 @@ export const useWebSocketHandler = ({
                 t('notifications.playerLeftOrDisconnected', {playerName: data.playerName || data.userName || t('notifications.a_player', 'Bir oyuncu')}),
               "warning"
             );
-          } else if (
-            user &&
-            (data.playerId === user.id || data.disconnectedUserId === user.id) &&
-            (data.type === "HANGMAN_PLAYER_DISCONNECTED_UPDATE" || data.type === "HANGMAN_PLAYER_LEFT_PREGAME" || data.type === "HANGMAN_PLAYER_LEFT_MIDGAME")
-          ) {
-            // Kendi ayrılma/bağlantı kesilme durumunda özel bir bildirim gerekirse buraya eklenebilir.
-            // Genellikle backend zaten oyundan çıkarır ve arayüz güncellenir.
           }
           updateGameStates();
           break;
@@ -264,6 +255,7 @@ export const useWebSocketHandler = ({
     gamePhase,
     clearAllNotifications,
     playSoundCallback,
+    lobbyName,
     t,
   ]);
 

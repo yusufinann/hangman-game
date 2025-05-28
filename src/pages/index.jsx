@@ -9,7 +9,7 @@ import { useWebSocketHandler } from "../hooks/useWebSocketHandler";
 import { GameContainer } from "./components/StyledComponents";
 import GameControls from "./components/GameControls";
 import HostSetupModal from "./components/HostSetupModal";
-import GamePlayArea from "./components/GamePlayArea";
+import GamePlayArea from "./components/GamePlayArea/GamePlayArea";
 import PlayerList from "./components/PlayerList";
 import CountdownScreen from "./components/CountdownScreen";
 import NotificationArea from "./components/NotificationArea";
@@ -17,9 +17,9 @@ import useHangmanSound from "../hooks/useHangmanSound";
 import HangmanLoading from "./components/HangmanLoading";
 import HangmanError from "./components/HangmanError";
 import HangmanWaitingScreen from "./components/HangmanWaitingScreen";
-import GameEndModalManager from "./components/GameEndModalManager";
+import GameEndModalManager from "./components/GameEndModalManager/GameEndModalManager";
 
-const Hangman = ({ lobbyCode, lobbyInfo, members, socket, user, hangmanSoundEnabled, toggleSound, t }) => {
+const Hangman = ({ lobbyCode, lobbyInfo, members, socket, user, hangmanSoundEnabled, toggleSound, t}) => {
   const [isHost, setIsHost] = useState(false);
   const [gamePhase, setGamePhase] = useState("loading");
   const [hostSetupData, setHostSetupData] = useState({
@@ -77,6 +77,7 @@ const Hangman = ({ lobbyCode, lobbyInfo, members, socket, user, hangmanSoundEnab
     clearAllNotifications,
     playSoundCallback: playSound,
     t,
+    lobbyName: lobbyInfo?.name, 
   });
 
   const turnTimeLeft = useTurnTimer(
@@ -138,22 +139,6 @@ const Hangman = ({ lobbyCode, lobbyInfo, members, socket, user, hangmanSoundEnab
 
   const lobbyCreatorName =
     lobbyCreatorDetails?.name || lobbyCreatorDetails?.username || t("hangman.unknownHost", "Bilinmeyen Host");
-
-  const shouldShowWaitingOrEndedScreen = useMemo(() => {
-    if (gamePhase === "waiting" && !sharedGameState.gameStarted) {
-      return true;
-    }
-    if (gamePhase === "ended" && sharedGameState.gameEnded && !isGameEndModalVisible) {
-      return true;
-    }
-    return false;
-  }, [
-    gamePhase,
-    sharedGameState.gameStarted,
-    sharedGameState.gameEnded,
-    isGameEndModalVisible,
-  ]);
-
 
   useEffect(() => {
     if (user?.id && lobbyInfo?.createdBy) {
