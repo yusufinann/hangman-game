@@ -101,9 +101,11 @@ const GamePlayArea = ({
             </Box>
           </Box>
 
-          {sharedGameState.currentPlayerId && myPlayerSpecificState.isMyTurn && (
-            <TimerBar percentage={(turnTimeLeft / 10) * 100} />
-          )}
+          {sharedGameState.currentPlayerId &&
+  myPlayerSpecificState.isMyTurn &&
+  sharedGameState.turnEndsAt && (
+    <TimerBar percentage={(turnTimeLeft / 10) * 100} />
+)}
         </Box>
 
         <Typography
