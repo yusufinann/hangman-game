@@ -354,7 +354,7 @@ const Hangman = ({ lobbyCode, lobbyInfo, members, socket, user, hangmanSoundEnab
             sx={{
               display: "flex",
               flexGrow: 1,
-              gap: 2,
+              gap: 1,
               alignItems: "stretch",
               overflow: "auto",
               flexDirection: { xs: "column", md: "row" },
@@ -393,8 +393,8 @@ const Hangman = ({ lobbyCode, lobbyInfo, members, socket, user, hangmanSoundEnab
               sx={{
                 width: { xs: "100%", md: "30%" },
                 minHeight: {xs: '250px', md: 'auto'},
-                maxHeight: { xs: '300px', md: '100%' }, // Constrain height on XS
-                overflowY: 'auto', // Allow scrolling for player list if it overflows
+                maxHeight: { xs: '300px', md: '100%' }, 
+                overflowY: 'auto', 
               }}
             >
               <PlayerList

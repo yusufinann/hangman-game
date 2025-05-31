@@ -57,6 +57,8 @@ const GamePlayArea = ({
         elevation={3}
         sx={{
           p: { xs: 1, sm: 2 },
+          background:"transparent",
+          backdropFilter: "blur(10px)",
           display: "flex",
           flexDirection: "column",
           justifyContent: "space-between",

@@ -88,7 +88,9 @@ const PlayerList = ({ sharedGameState, userId, t }) => {
         flexDirection: 'column',
         overflow: 'hidden',
         borderRadius: 2,
-        bgcolor: theme.palette.background.paper,
+        background:"transparent",
+          backdropFilter: "blur(10px)",
+        //bgcolor: theme.palette.background.paper,
       }}
     >
       <Box sx={{
