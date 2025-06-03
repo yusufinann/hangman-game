@@ -19,13 +19,13 @@ import HangmanError from "./components/HangmanError";
 import HangmanWaitingScreen from "./components/HangmanWaitingScreen";
 import GameEndModalManager from "./components/GameEndModalManager/GameEndModalManager";
 
-const Hangman = ({ lobbyCode, lobbyInfo, members, socket, user, hangmanSoundEnabled, toggleSound, t}) => {
+const Hangman = ({ lobbyCode, lobbyInfo, members, socket, user, hangmanSoundEnabled, toggleSound, t,isConnected}) => {
   const [isHost, setIsHost] = useState(false);
-  const [gamePhase, setGamePhase] = useState("loading"); // loading, waiting, countdown, playing, ended, error
+  const [gamePhase, setGamePhase] = useState("loading"); 
   const [hostSetupData, setHostSetupData] = useState({
-    languageMode: "en", // Default or load from previous settings if desired
+    languageMode: "en", 
     availableLanguages: [],
-    wordSourceMode: "server", // 'server' or 'host'
+    wordSourceMode: "server",
     category: "",
     availableCategories: [],
     customWord: "",
@@ -90,6 +90,7 @@ const Hangman = ({ lobbyCode, lobbyInfo, members, socket, user, hangmanSoundEnab
     clearAllNotifications,
     playSoundCallback: playSound,
     t,
+    isConnected
   });
 
   const turnTimeLeft = useTurnTimer(
@@ -152,7 +153,6 @@ const Hangman = ({ lobbyCode, lobbyInfo, members, socket, user, hangmanSoundEnab
   }, [user?.id, lobbyInfo?.createdBy]);
 
   useEffect(() => {
-    // Fetch initial languages if host and modal is about to be shown or game not started
     if (socket && socket.readyState === WebSocket.OPEN && isHost && hostSetupData.availableLanguages.length === 0 && (showHostSetupModal || (gamePhase !== "playing" && gamePhase !== "countdown"))) {
         socket.send(JSON.stringify({ type: "HANGMAN_GET_CATEGORIES" }));
     }
@@ -231,8 +231,8 @@ const Hangman = ({ lobbyCode, lobbyInfo, members, socket, user, hangmanSoundEnab
     setHostSetupData((prev) => {
         const newState = { ...prev, [name]: value };
         if (isLanguageChange) {
-            newState.category = ""; // Reset category if language changes
-            newState.availableCategories = []; // Reset categories, will be fetched
+            newState.category = ""; 
+            newState.availableCategories = []; 
         }
         return newState;
     });
@@ -274,7 +274,6 @@ const Hangman = ({ lobbyCode, lobbyInfo, members, socket, user, hangmanSoundEnab
             return;
         }
         payload.customWord = trimmedCustomWord;
-        // customCategory backend'e gönderiliyor
         if (customCategory && customCategory.trim()) {
             payload.customCategory = customCategory.trim();
         }
@@ -282,15 +281,13 @@ const Hangman = ({ lobbyCode, lobbyInfo, members, socket, user, hangmanSoundEnab
     setIsStartingGame(true);
     socket.send(JSON.stringify(payload));
     setShowHostSetupModal(false);
-    // Server will send countdown, no need to set gamePhase here immediately
-    // Reset isStartingGame after a short delay or on game_started/error message
-    setTimeout(() => setIsStartingGame(false), 3000); // Basic timeout
+    setTimeout(() => setIsStartingGame(false), 3000); 
   };
 
   const handleLetterGuess = (letter) => {
     if (!socket || !myPlayerSpecificState.isMyTurn || !amIReallyPlaying) return;
 
-    const l = letter.toLowerCase(); // Backend expects lowercase
+    const l = letter.toLowerCase(); 
     if (
       myPlayerSpecificState.correctGuesses.includes(l) ||
       myPlayerSpecificState.incorrectGuesses.includes(l)
@@ -345,7 +342,7 @@ const Hangman = ({ lobbyCode, lobbyInfo, members, socket, user, hangmanSoundEnab
           onHostSetupChange={handleHostSetupChange}
           onStartGame={handleStartGame}
           isStarting={isStartingGame}
-          socket={socket} // Pass socket to modal
+          socket={socket}
           t={t}
         />
 
@@ -433,7 +430,7 @@ const Hangman = ({ lobbyCode, lobbyInfo, members, socket, user, hangmanSoundEnab
           sharedGameState.gameEnded &&
           !isGameEndModalVisible &&
           (!sharedGameState.rankings || sharedGameState.rankings.length === 0 || !currentUserIsInRankings) &&
-           (sharedGameState.wordSourceMode === 'server' || (sharedGameState.wordSourceMode === 'host' && !isHost)) && // Show only if participant or server mode
+           (sharedGameState.wordSourceMode === 'server' || (sharedGameState.wordSourceMode === 'host' && !isHost)) && 
             (
             <Alert
               severity="info"
