@@ -3,11 +3,10 @@ import { Box, Button, Typography } from '@mui/material';
 
 const alphabets = {
   en: "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split(''),
-  tr: "ABCÇDEFGĞHIİJKLMNOÖPRSŞTUÜVYZ".split('') // Türkçe karakterleri ekledim (Ğ unutulmuştu sanırım)
+  tr: "ABCÇDEFGĞHIİJKLMNOÖPRSŞTUÜVYZ".split('')
 };
 
 const AlphabetGrid = ({ onGuess, disabledLetters = [], isMyTurn, languageMode = 'en', t }) => {
-  // Dil moduna göre doğru alfabeyi seç, eğer dil modu geçerli değilse varsayılan olarak İngilizce kullan
   const currentAlphabet = alphabets[languageMode] || alphabets.en;
 
   return (
@@ -22,7 +21,7 @@ const AlphabetGrid = ({ onGuess, disabledLetters = [], isMyTurn, languageMode = 
       }}
     >
       <Typography variant="subtitle2" sx={{ mb: 1, textAlign: 'center' }}>
-        {t("alphabetGrid.chooseLetter", "Choose a Letter")} {/* Çeviri anahtarını güncelledim */}
+        {t("alphabetGrid.chooseLetter", "Choose a Letter")}
       </Typography>
 
       <Box
@@ -31,26 +30,34 @@ const AlphabetGrid = ({ onGuess, disabledLetters = [], isMyTurn, languageMode = 
           flexWrap: 'wrap',
           justifyContent: 'center',
           gap: 0.5,
-          maxWidth: { xs: '100%', sm: 520 }, // Maksimum genişlik Türkçe alfabe için biraz daha fazla olabilir
+          maxWidth: { xs: '100%', sm: 520 },
           margin: 'auto',
         }}
       >
         {currentAlphabet.map((letter) => {
-          const lowerCaseLetter = letter.toLowerCase(); // Karşılaştırma için küçük harf
-          const isDisabled = disabledLetters.includes(lowerCaseLetter);
+          const letterToSend = letter;
+
+          let displayLetterLowerCase;
+          if (languageMode === 'tr') {
+            displayLetterLowerCase = letter.toLocaleLowerCase('tr-TR');
+          } else {
+            displayLetterLowerCase = letter.toLowerCase();
+          }
+
+          const isDisabled = disabledLetters.includes(displayLetterLowerCase);
 
           return (
             <Box key={letter} sx={{ m: 0.2 }}>
               <Button
                 variant={isDisabled ? "outlined" : "contained"}
                 color={isDisabled ? "secondary" : "primary"}
-                onClick={() => onGuess(letter)} // Orijinal büyük/küçük harfi gönder
+                onClick={() => onGuess(letterToSend)} 
                 disabled={!isMyTurn || isDisabled}
                 sx={{
-                  minWidth: { xs: '32px', sm: '38px' }, // Boyutlar TR için ayarlanabilir
+                  minWidth: { xs: '32px', sm: '38px' },
                   height: { xs: '32px', sm: '38px' },
                   padding: '4px',
-                  fontSize: { xs: '0.75rem', sm: '0.85rem' }, // Türkçe alfabe daha fazla harf içerdiği için fontu biraz küçültebiliriz
+                  fontSize: { xs: '0.75rem', sm: '0.85rem' },
                   fontWeight: 'bold',
                 }}
               >
