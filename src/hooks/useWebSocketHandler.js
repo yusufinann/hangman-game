@@ -33,9 +33,6 @@ export const useWebSocketHandler = ({
       lobbyCode &&
       !initialRequestsSentForLobbyRef.current
     ) {
-      console.log(
-        `[WS_HANDLER ${lobbyCode}] Bağlantı aktif. Başlangıç istekleri gönderiliyor.`
-      );
       socket.send(JSON.stringify({ type: "HANGMAN_JOIN", lobbyCode }));
       socket.send(JSON.stringify({ type: "HANGMAN_GET_CATEGORIES" }));
       initialRequestsSentForLobbyRef.current = true;
@@ -223,7 +220,7 @@ export const useWebSocketHandler = ({
           break;
         case "HANGMAN_RECONNECTED":
         case "HANGMAN_JOINED_SUCCESS":
-        case "HANGMAN_CURRENT_GAME_STATE": // Bu mesaj türünü de ekledim, sunucu bunu gönderebilir
+        case "HANGMAN_CURRENT_GAME_STATE":
           addNotification(
             data.message ||
               t("notifications.connectedToGame", "Connected to game."),
