@@ -2,6 +2,8 @@ import { useState, useEffect, useMemo, useRef } from "react";
 import {
   Alert,
   Box,
+  CircularProgress,
+  Typography,
 } from "@mui/material";
 import { useGameNotifications } from "../hooks/useGameNotifications";
 import { useTurnTimer } from "../hooks/useTurnTimer";
@@ -189,6 +191,23 @@ const Hangman = ({ lobbyCode, lobbyInfo, members, socket, user, hangmanSoundEnab
   const handleCloseNotification = (id) => {
     setNotifications((prev) => prev.filter((notif) => notif.id !== id));
   };
+
+    if (!socket || !isConnected) {
+    return (
+      <Box
+        display="flex"
+        justifyContent="center"
+        alignItems="center"
+        minHeight="400px"
+        flexDirection="column"
+      >
+        <CircularProgress />
+        <Typography variant="h6" sx={{ mt: 2 }}>
+          {t("Waiting for connection...")}
+        </Typography>
+      </Box>
+    );
+  }
 
   if (gamePhase === "loading" || !user?.id || (gamePhase !== "error" && !sharedGameState.hostId && (sharedGameState.gameStarted || sharedGameState.gameEnded))) {
     return (
