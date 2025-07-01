@@ -1,422 +1,424 @@
-import React from "react";
-import {
-  Box,
-  Typography,
-  Paper,
-  TextField,
-  Chip,
-  Button,
-  Alert,
-} from "@mui/material";
-import HangmanDrawing from "./HangmanDrawing";
-import AlphabetGrid from "./AlphabetGrid";
-import { TimerBar } from "../StyledComponents";
-import GameControls from "../GameControls";
-import VolumeButton from "./VolumeButton";
+import React, { useMemo } from "react";
+import { Box, Typography, Paper, Chip, Alert } from "@mui/material";
+import { alpha } from "@mui/material/styles";
+import GameHeader from "./GameHeader";
+import GameInteractionZone from "./GameInteractionZone";
+import WordGuessForm from "./WordGuessForm";
 
-const MAX_TURN_TIME_SECONDS = 12;
+const MaskedWordDisplay = React.memo(({ maskedWord, wordLength, t }) => (
+  <Typography
+    variant="h2"
+    letterSpacing={{ xs: 2, sm: 4, md: 6 }}
+    sx={{
+      my: { xs: 1, md: 2 },
+      wordBreak: "break-all",
+      userSelect: "none",
+      minHeight: "48px",
+      fontWeight: 800,
+      fontSize: { xs: "2.2rem", sm: "2.8rem", md: "3.5rem" },
+      overflowWrap: "break-word",
+      textAlign: "center",
+      p: 1,
+      fontFamily: '"Orbitron", "Roboto", sans-serif',
+      color: (theme) => alpha(theme.palette.primary.main, 0.9), // Degistirildi: Gradyan yerine direkt renk
+      // Degistirildi: Daha belirgin bir golge efekti
+      textShadow: `
+        0 0 15px ${alpha("#2dd4bf", 0.4)}, 
+        0 0 5px ${alpha("#ffffff", 0.5)},
+        2px 2px 4px ${alpha("#000000", 0.3)}
+      `,
+    }}
+  >
+    {maskedWord ||
+      (wordLength
+        ? "_ ".repeat(wordLength).trim()
+        : t("gameplay.loadingWord", "Loading word..."))}
+  </Typography>
+));
 
-const GamePlayArea = ({
-  sharedGameState,
-  myPlayerSpecificState,
-  turnTimeLeft,
-  currentPlayerTurnName,
-  onLetterGuess,
-  onWordSubmit,
-  currentWordGuessInput,
-  setCurrentWordGuessInput,
-  isHost,
-  gamePhase,
-  onOpenHostSetup,
-  onEndGameByHost,
-  toggleSound,
-  soundEnabled,
-  t,
-}) => {
-  const amIReallyPlaying = myPlayerSpecificState?.isParticipating ?? false;
-  const myActualRemainingAttempts =
-    myPlayerSpecificState?.remainingAttempts ?? 0;
-
-  const isHostObserver =
-    isHost &&
-    sharedGameState.wordSourceMode === "host" &&
-    !myPlayerSpecificState.isParticipating;
-  const showSecondsInTurnLabel = !!sharedGameState.turnEndsAt;
+const PlayerStats = React.memo(({ myPlayerSpecificState, t }) => {
+  const remainingAttempts = myPlayerSpecificState?.remainingAttempts ?? 0;
   return (
-    <Box
-      sx={{
-        display: "flex",
-        flexDirection: "column",
-        flexGrow: 1,
-        gap: 1,
-        overflow: "auto",
-        height: "100%",
-      }}
-    >
-      <Paper
-        elevation={3}
+    <Box sx={{ mb: 1, textAlign: "center" }}>
+      <Typography
+        variant="subtitle2"
         sx={{
-          p: { xs: 1, sm: 2 },
-          background:"transparent",
-          backdropFilter: "blur(10px)",
-          display: "flex",
-          flexDirection: "column",
-          justifyContent: "space-between",
-          width: "100%",
-          height: "100%",
-          overflow: "visible",
+          fontSize: "1rem",
+          color: (theme) => alpha(theme.palette.text.primary, 0.95),
+          fontWeight: 600,
+          fontFamily: '"Roboto Mono", monospace', // Eklendi: Monospaced font
+          textShadow: "1px 1px 2px rgba(0,0,0,0.2)", // Eklendi: Metin golgesi
         }}
       >
-        <Box>
-          <Box
+        {t("gameplay.attemptsLeftLabel", "Kalan Hak")}:{" "}
+        <Chip
+          label={remainingAttempts}
+          size="small"
+          sx={{
+            fontSize: "0.9rem",
+            fontWeight: "bold",
+            fontFamily: "'Orbitron', 'Press Start 2P', cursive",
+            color: 'white',
+            background: (theme) => {
+              const color =
+                remainingAttempts > 3
+                  ? theme.palette.success.main
+                  : remainingAttempts > 1
+                  ? theme.palette.warning.main
+                  : theme.palette.error.main;
+              return `linear-gradient(145deg, ${alpha(color, 0.9)} 0%, ${alpha(
+                color,
+                0.7
+              )} 100%)`;
+            },
+            boxShadow: (theme) => {
+              const color =
+                remainingAttempts > 3
+                  ? theme.palette.success.light
+                  : remainingAttempts > 1
+                  ? theme.palette.warning.light
+                  : theme.palette.error.light;
+              return `0 4px 15px ${alpha(color, 0.3)}`;
+            },
+          }}
+        />
+      </Typography>
+      <Typography
+        variant="caption"
+        sx={{
+          my: 0.5,
+          minHeight: "24px",
+          wordBreak: "break-all",
+          color: (theme) =>
+            theme.palette.mode === "dark"
+              ? theme.palette.common.white
+              : "text.primary",
+          fontSize: "0.85rem",
+          display: "block",
+          fontFamily: '"Roboto Mono", monospace', // Eklendi: Monospaced font
+          textShadow: "1px 1px 2px rgba(0,0,0,0.2)", // Eklendi: Metin golgesi
+        }}
+      >
+        {t("gameplay.correctGuessesLabel", "Doğru Tahminler")}:{" "}
+        <Chip
+          label={
+            myPlayerSpecificState.correctGuesses.join(", ").toUpperCase() || "-"
+          }
+          size="small"
+          color="success"
+          variant="outlined"
+          sx={{
+            mr: 0.5,
+            height: "24px",
+            fontFamily: '"Roboto Mono", monospace',
+            background: (theme) => alpha(theme.palette.success.main, 0.1),
+            borderColor: (theme) => alpha(theme.palette.success.main, 0.5),
+            backdropFilter: "blur(4px)",
+          }}
+        />
+        {t("gameplay.incorrectGuessesLabel", "Yanlış Tahminler")}:{" "}
+        <Chip
+          label={
+            myPlayerSpecificState.incorrectGuesses.join(", ").toUpperCase() ||
+            "-"
+          }
+          size="small"
+          color="error"
+          variant="outlined"
+          sx={{
+            height: "24px",
+            fontFamily: '"Roboto Mono", monospace',
+            background: (theme) => alpha(theme.palette.error.main, 0.1),
+            borderColor: (theme) => alpha(theme.palette.error.main, 0.5),
+            backdropFilter: "blur(4px)",
+          }}
+        />
+      </Typography>
+    </Box>
+  );
+});
+
+// GameStatusAlerts bileşeni değişmedi.
+
+const GameStatusAlerts = React.memo(
+    ({
+      gamePhase,
+      isHostObserver,
+      myPlayerSpecificState,
+      sharedGameState,
+      t,
+    }) => {
+      if (gamePhase === "playing" && isHostObserver) {
+        return (
+          <Alert
+            severity="info"
             sx={{
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-              flexWrap: "wrap",
-              gap: 1,
-              mb: 1,
+              my: 1,
+              textAlign: "center",
+              borderRadius: "16px",
+              background: (theme) => `linear-gradient(135deg, 
+                  ${alpha(theme.palette.info.main, 0.1)} 0%, 
+                  ${alpha(theme.palette.info.main, 0.05)} 100%)`,
+              backdropFilter: "blur(8px)",
+              border: (theme) =>
+                `1px solid ${alpha(theme.palette.info.main, 0.3)}`,
+              boxShadow: (theme) =>
+                `0 4px 16px ${alpha(theme.palette.info.main, 0.2)}`,
             }}
           >
-            <Box sx={{ flex: "1", minWidth: "160px", textAlign: "left" }}>
-              <Typography variant="caption" display="block">
-                {t("wordLanguage")}:{" "}
-                <Chip
-                  label={sharedGameState.languageMode?.toUpperCase()}
-                  size="small"
-                  variant="outlined"
-                />{" "}
-                {t("Word Selection")}:{" "}
-                <Chip
-                  label={
-                    sharedGameState.wordSourceMode === "server"
-                      ? t(
-                          "hostSetupModal.wordSourceAutomatic",
-                          "Automatic Word"
-                        )
-                      : t("hostSetupModal.wordSourceCustom", "Custom Word")
-                  }
-                  size="small"
-                  variant="outlined"
-                />
-              </Typography>
-              <Typography variant="h6" gutterBottom sx={{ m: 0 }}>
-                {t("gameplay.categoryLabel", "Category")}:{" "}
-                <Chip
-                  label={
-                    sharedGameState.category?.toUpperCase() ||
-                    t("gameplay.categoryUndefined", "N/A")
-                  }
-                  color="info"
-                  variant="filled"
-                  size="small"
-                />
-              </Typography>
-
-              {sharedGameState.currentPlayerId && gamePhase === "playing" && (
-                <Typography
-                  variant="body2"
-                  sx={{ fontWeight: "bold", my: 0.5 }}
-                >
-                  {t("gameplay.turnLabel", "Turn")}:{" "}
-                  <Chip
-                    label={
-                      myPlayerSpecificState.isMyTurn
-                        ? showSecondsInTurnLabel
-                          ? t("gameplay.yourTurn", { seconds: turnTimeLeft })
-                          : t("gameplay.yourTurnSimple", "Your Turn")
-                        : `${currentPlayerTurnName}`
-                    }
-                    color={
-                      myPlayerSpecificState.isMyTurn ? "success" : "default"
-                    }
-                    variant={
-                      myPlayerSpecificState.isMyTurn ? "filled" : "outlined"
-                    }
-                    size="small"
-                  />
-                </Typography>
-              )}
-            </Box>
-
-            <Box
-              sx={{
-                flex: "0 0 auto",
-                display: "flex",
-                justifyContent: "flex-end",
-                gap: { xs: 1, sm: 2 },
-                minWidth: { xs: "100%", sm: "auto" },
-                alignItems: "center",
-              }}
-            >
-              <GameControls
-                isHost={isHost}
-                gamePhase={gamePhase}
-                onOpenHostSetup={onOpenHostSetup}
-                onEndGameByHost={onEndGameByHost}
-                t={t}
-              />
-              <VolumeButton
-                toggleSound={toggleSound}
-                soundEnabled={soundEnabled}
-                t={t}
-              />
-            </Box>
-          </Box>
-
-          {sharedGameState.currentPlayerId &&
-            myPlayerSpecificState.isMyTurn &&
-            sharedGameState.turnEndsAt &&
-            gamePhase === "playing" &&
-            !isHostObserver && (
-              <TimerBar
-                percentage={(turnTimeLeft / MAX_TURN_TIME_SECONDS) * 100}
-              />
-            )}
-        </Box>
-
-        <Typography
-          variant="h2"
-          letterSpacing={{ xs: 1, sm: 2, md: 3 }}
-          sx={{
-            my: { xs: 1, md: 2 },
-            wordBreak: "break-all",
-            userSelect: "none",
-            minHeight: "48px",
-            fontWeight: 300,
-            fontSize: { xs: "1.8rem", sm: "2.2rem", md: "2.8rem" },
-            overflowWrap: "break-word",
-            textAlign: "center",
-            p: 1,
-          }}
-        >
-          {sharedGameState.maskedWord ||
-            (sharedGameState.wordLength
-              ? "_ ".repeat(sharedGameState.wordLength).trim()
-              : t("gameplay.loadingWord", "Loading word..."))}
-        </Typography>
-
-        {!isHostObserver && amIReallyPlaying && gamePhase === "playing" && (
-          <Box sx={{ mb: 1, textAlign: "center" }}>
-            <Typography variant="body2" sx={{ fontSize: "0.9rem" }}>
-              {t("gameplay.attemptsLeftLabel", "Attempts Left")}:{" "}
-              <Chip
-                label={myActualRemainingAttempts}
-                size="small"
-                color={
-                  myActualRemainingAttempts > 3
-                    ? "success"
-                    : myActualRemainingAttempts > 1
-                    ? "warning"
-                    : "error"
-                }
-                sx={{ fontSize: "0.8rem", fontWeight: "bold" }}
-              />
-            </Typography>
-            <Typography
-              variant="body1"
-              sx={{
-                mb: 0.5,
-                minHeight: "24px",
-                wordBreak: "break-all",
-                color: "text.secondary",
-                fontSize: "0.8rem",
-              }}
-            >
-              {t("gameplay.correctGuessesLabel", "Correct")}:{" "}
-              <Chip
-                label={
-                  myPlayerSpecificState.correctGuesses
-                    .join(", ")
-                    .toUpperCase() || "-"
-                }
-                size="small"
-                color="success"
-                variant="outlined"
-                sx={{ mr: 0.5, height: "20px" }}
-              />
-              {t("gameplay.incorrectGuessesLabel", "Incorrect")}:{" "}
-              <Chip
-                label={
-                  myPlayerSpecificState.incorrectGuesses
-                    .join(", ")
-                    .toUpperCase() || "-"
-                }
-                size="small"
-                color="error"
-                variant="outlined"
-                sx={{ height: "20px" }}
-              />
-            </Typography>
-          </Box>
-        )}
-
-        {isHostObserver && gamePhase === "playing" && (
-          <Alert severity="info" sx={{ my: 1, textAlign: "center" }}>
             {t(
               "gameplay.hostObserverMessage",
               "You defined the word and are observing the game. Other players are trying to guess it."
             )}
           </Alert>
-        )}
-
-        {gamePhase === "playing" && (
-          <Box sx={{ flex: 1, display: "flex", flexDirection: "column" }}>
-            <Box
+        );
+      }
+  
+      if (!isHostObserver) {
+        if (myPlayerSpecificState.won) {
+          return (
+            <Alert
+              severity="success"
+              variant="filled"
               sx={{
-                display: "flex",
-                flexDirection: { xs: "column", sm: "row" },
-                alignItems: "center",
+                mt: 1,
                 justifyContent: "center",
-                gap: 2,
-                mb: 2,
-                flex: 1,
+                borderRadius: "16px",
+                background: (theme) => `linear-gradient(135deg, 
+                  ${theme.palette.success.main} 0%, 
+                  ${theme.palette.success.light} 100%)`,
+                boxShadow: (theme) =>
+                  `0 6px 24px ${alpha(theme.palette.success.main, 0.4)}`,
+                animation: "celebrate 0.6s ease-out",
+                "@keyframes celebrate": {
+                  "0%": { transform: "scale(0.8)", opacity: 0 },
+                  "50%": { transform: "scale(1.05)" },
+                  "100%": { transform: "scale(1)", opacity: 1 },
+                },
               }}
             >
-              <Box
+              <Typography
+                variant="h5"
+                component="span"
                 sx={{
-                  display: "flex",
-                  justifyContent: "center",
-                  alignItems: "center",
-                  width: { xs: "100%", sm: "40%" },
-                  minHeight: { xs: "100px", sm: "120px" },
-                  maxWidth: "200px",
+                  fontWeight: "bold",
+                  textShadow: "0 2px 4px rgba(0,0,0,0.3)",
                 }}
               >
-                {isHostObserver ? (
-                  <Typography variant="caption" color="text.secondary">
-                    {t(
-                      "gameplay.hostObserverDrawingPlaceholder",
-                      "Players' progress will be shown in the player list."
-                    )}
-                  </Typography>
-                ) : (
-                  <HangmanDrawing
-                    incorrectGuesses={6 - myActualRemainingAttempts}
-                    size={0.9}
-                  />
-                )}
-              </Box>
-
-              {amIReallyPlaying && !isHostObserver && (
-                <Box
-                  sx={{
-                    flexGrow: 1,
-                    width: { xs: "100%", sm: "60%" },
-                    minHeight: { xs: "180px", sm: "200px" },
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                  }}
-                >
-                  <AlphabetGrid
-                    onGuess={onLetterGuess}
-                    disabledLetters={[
-                      ...myPlayerSpecificState.correctGuesses,
-                      ...myPlayerSpecificState.incorrectGuesses,
-                    ]}
-                    isMyTurn={myPlayerSpecificState.isMyTurn}
-                    languageMode={sharedGameState.languageMode}
-                    t={t}
-                  />
-                </Box>
-              )}
-            </Box>
-
-            {amIReallyPlaying && !isHostObserver && (
-              <Box
-                component="form"
-                onSubmit={onWordSubmit}
-                sx={{
-                  display: "flex",
-                  flexDirection: { xs: "column", sm: "row" },
-                  alignItems: "center",
-                  justifyContent: "center",
-                  gap: 1,
-                  mt: "auto",
-                  mb: 1,
-                }}
-              >
-                <TextField
-                  label={t(
-                    "gameplay.guessWordFieldLabel",
-                    "Guess the full word"
-                  )}
-                  variant="outlined"
-                  size="small"
-                  value={currentWordGuessInput}
-                  onChange={(e) => setCurrentWordGuessInput(e.target.value)}
-                  disabled={!myPlayerSpecificState.isMyTurn}
-                  fullWidth
-                  sx={{ maxWidth: "350px" }}
-                  inputProps={{
-                    maxLength:
-                      sharedGameState.wordLength > 0
-                        ? sharedGameState.wordLength
-                        : 30,
-                    style: {
-                      textTransform:
-                        sharedGameState.languageMode === "tr"
-                          ? "none"
-                          : "uppercase",
-                    },
-                  }}
-                />
-                <Button
-                  type="submit"
-                  variant="contained"
-                  size="medium"
-                  disabled={
-                    !myPlayerSpecificState.isMyTurn ||
-                    !currentWordGuessInput.trim()
-                  }
-                >
-                  {t("gameplay.submitButton", "Submit Word")}
-                </Button>
-              </Box>
-            )}
-          </Box>
-        )}
-
-        {!isHostObserver && myPlayerSpecificState.won && (
-          <Alert
-            severity="success"
-            variant="filled"
-            sx={{ mt: 1, justifyContent: "center", fontSize: "1rem", py: 0.5 }}
-          >
-            {t("gameplay.winMessage", "Congratulations! You won!")}
-          </Alert>
-        )}
-
-        {!isHostObserver &&
-          myPlayerSpecificState.eliminated &&
-          !myPlayerSpecificState.won && (
+                {t("gameplay.winMessage", "Congratulations! You won!")}
+              </Typography>
+            </Alert>
+          );
+        }
+        if (myPlayerSpecificState.eliminated && !myPlayerSpecificState.won) {
+          return (
             <Alert
               severity="error"
               variant="filled"
               sx={{
                 mt: 1,
                 justifyContent: "center",
-                fontSize: "1rem",
-                py: 0.5,
+                borderRadius: "16px",
+                background: (theme) => `linear-gradient(135deg, 
+                    ${theme.palette.error.main} 0%, 
+                    ${theme.palette.error.dark} 100%)`,
+                boxShadow: (theme) =>
+                  `0 6px 24px ${alpha(theme.palette.error.main, 0.4)}`,
               }}
             >
-              {t("gameplay.eliminationMessage", "You have been eliminated!")}
+              <Typography
+                variant="h5"
+                component="span"
+                sx={{
+                  fontWeight: "bold",
+                  textShadow: "0 2px 4px rgba(0,0,0,0.3)",
+                }}
+              >
+                {t("gameplay.eliminationMessage", "You have been eliminated!")}
+              </Typography>
             </Alert>
-          )}
-
-        {gamePhase === "ended" && sharedGameState.word && (
+          );
+        }
+      }
+  
+      if (gamePhase === "ended" && sharedGameState.word) {
+        return (
           <Alert
             severity="info"
-            sx={{ mt: 1, justifyContent: "center", fontSize: "1rem" }}
+            sx={{
+              mt: 1,
+              justifyContent: "center",
+              borderRadius: "16px",
+              background: (theme) => `linear-gradient(135deg, 
+                  ${alpha(theme.palette.info.main, 0.9)} 0%, 
+                  ${alpha(theme.palette.info.main, 0.7)} 100%)`,
+              backdropFilter: "blur(8px)",
+              border: (theme) =>
+                `1px solid ${alpha(theme.palette.info.main, 0.3)}`,
+              boxShadow: (theme) =>
+                `0 4px 16px ${alpha(theme.palette.info.main, 0.3)}`,
+            }}
           >
             {t("gameplay.wordWas", "The word was:")}{" "}
-            <strong>{sharedGameState.word.toUpperCase()}</strong>
+            <Typography
+              component="strong"
+              variant="h6"
+              sx={{
+                display: "inline",
+                background: (theme) => `linear-gradient(135deg, 
+                    ${theme.palette.primary.main} 0%, 
+                    ${theme.palette.secondary.main} 100%)`,
+                WebkitBackgroundClip: "text",
+                WebkitTextFillColor: "transparent",
+                backgroundClip: "text",
+                fontWeight: "bold",
+                fontFamily: '"Orbitron", sans-serif',
+              }}
+            >
+              {sharedGameState.word.toUpperCase()}
+            </Typography>
           </Alert>
-        )}
-      </Paper>
-    </Box>
+        );
+      }
+      return null;
+    }
   );
-};
+
+const GamePlayArea = React.memo(
+  ({
+    sharedGameState,
+    myPlayerSpecificState,
+    turnTimeLeft,
+    currentPlayerTurnName,
+    onLetterGuess,
+    onWordSubmit,
+    currentWordGuessInput,
+    setCurrentWordGuessInput,
+    isHost,
+    gamePhase,
+    onOpenHostSetup,
+    onEndGameByHost,
+    toggleSound,
+    soundEnabled,
+    t,
+  }) => {
+    const amIReallyPlaying = useMemo(
+      () => myPlayerSpecificState?.isParticipating ?? false,
+      [myPlayerSpecificState?.isParticipating]
+    );
+
+    const isHostObserver = useMemo(
+      () =>
+        isHost &&
+        sharedGameState.wordSourceMode === "host" &&
+        !myPlayerSpecificState.isParticipating,
+      [
+        isHost,
+        sharedGameState.wordSourceMode,
+        myPlayerSpecificState.isParticipating,
+      ]
+    );
+
+    return (
+      <Box
+        sx={{
+          display: "flex",
+          flexDirection: "column",
+          flexGrow: 1,
+          gap: 1,
+          overflow: "auto",
+          height: "100%",
+        }}
+      >
+        <Paper
+          elevation={0}
+          sx={{
+            p: { xs: 1, sm: 2 },
+            // Degistirildi: Aurora efekti için radyal ve lineer gradyan kombinasyonu
+            background: (theme) =>
+              theme.palette.mode === "dark"
+                ? `radial-gradient(ellipse at 50% 40%, ${alpha("#2dd4bf", 0.1)}, transparent 80%),
+                   linear-gradient(135deg, ${alpha("#0f172a", 0.2)} 0%, ${alpha("#1e293b", 0.3)} 100%)`
+                : `radial-gradient(ellipse at 50% 40%, ${alpha(theme.palette.primary.light, 0.15)}, transparent 80%),
+                   linear-gradient(135deg, ${alpha("#ffffff", 0.25)} 0%, ${alpha(theme.palette.primary.main, 0.05)} 100%)`,
+            backdropFilter: "blur(20px) saturate(180%)",
+            WebkitBackdropFilter: "blur(20px) saturate(180%)",
+            border: (theme) =>
+              `1px solid ${alpha(theme.palette.primary.main, 0.2)}`,
+            borderRadius: "20px",
+            display: "flex",
+            flexDirection: "column",
+            justifyContent: "space-between",
+            width: "100%",
+            height: "100%",
+            overflow: "visible",
+            boxShadow: (theme) => `
+              0 8px 32px 0 ${alpha(theme.palette.common.black, 0.37)}
+            `,
+            position: "relative",
+          }}
+        >
+          <GameHeader
+            sharedGameState={sharedGameState}
+            myPlayerSpecificState={myPlayerSpecificState}
+            turnTimeLeft={turnTimeLeft}
+            currentPlayerTurnName={currentPlayerTurnName}
+            isHost={isHost}
+            gamePhase={gamePhase}
+            onOpenHostSetup={onOpenHostSetup}
+            onEndGameByHost={onEndGameByHost}
+            toggleSound={toggleSound}
+            soundEnabled={soundEnabled}
+            t={t}
+          />
+
+          <MaskedWordDisplay
+            maskedWord={sharedGameState.maskedWord}
+            wordLength={sharedGameState.wordLength}
+            t={t}
+          />
+
+          {!isHostObserver && amIReallyPlaying && gamePhase === "playing" && (
+            <PlayerStats myPlayerSpecificState={myPlayerSpecificState} t={t} />
+          )}
+
+          <GameStatusAlerts
+            gamePhase={gamePhase}
+            isHostObserver={isHostObserver}
+            myPlayerSpecificState={myPlayerSpecificState}
+            sharedGameState={sharedGameState}
+            t={t}
+          />
+
+          {gamePhase === "playing" && (
+            <Box sx={{ flex: 1, display: "flex", flexDirection: "column" }}>
+              <GameInteractionZone
+                isHostObserver={isHostObserver}
+                amIReallyPlaying={amIReallyPlaying}
+                myActualRemainingAttempts={
+                  myPlayerSpecificState?.remainingAttempts ?? 0
+                }
+                myPlayerSpecificState={myPlayerSpecificState}
+                onLetterGuess={onLetterGuess}
+                sharedGameState={sharedGameState}
+                t={t}
+              />
+              {amIReallyPlaying && !isHostObserver && (
+                <WordGuessForm
+                  onWordSubmit={onWordSubmit}
+                  currentWordGuessInput={currentWordGuessInput}
+                  setCurrentWordGuessInput={setCurrentWordGuessInput}
+                  myPlayerSpecificState={myPlayerSpecificState}
+                  sharedGameState={sharedGameState}
+                  t={t}
+                />
+              )}
+            </Box>
+          )}
+        </Paper>
+      </Box>
+    );
+  }
+);
 
 export default GamePlayArea;

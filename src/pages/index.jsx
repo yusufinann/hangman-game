@@ -374,7 +374,7 @@ const Hangman = ({ lobbyCode, lobbyInfo, members, socket, user, hangmanSoundEnab
               alignItems: "stretch",
               overflow: "auto",
               flexDirection: { xs: "column", md: "row" },
-              p: { xs: 1, sm: 2 }
+              
             }}
           >
             <Box
