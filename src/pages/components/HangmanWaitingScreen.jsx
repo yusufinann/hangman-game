@@ -114,7 +114,7 @@ const HangmanWaitingScreen = ({
                 />
               ) : (
                 <SportsEsportsIcon
-                  color="primary"
+                  color="secondary"
                   sx={{ fontSize: isMobile ? 30 : 40, mr: 1 }}
                 />
               )}
@@ -123,7 +123,7 @@ const HangmanWaitingScreen = ({
                 component="h1"
                 sx={{
                   fontWeight: "bold",
-                  color: "primary.main",
+                  color: "secondary.main",
                   textAlign: "center",
                 }}
               >
@@ -304,7 +304,7 @@ const HangmanWaitingScreen = ({
                   <HourglassEmptyIcon
                     sx={{
                       fontSize: isMobile ? 30 : 40,
-                      color: "primary.main",
+                      color: "secondary.main",
                       position: "absolute",
                       top: "50%",
                       left: "50%",
@@ -316,7 +316,7 @@ const HangmanWaitingScreen = ({
 
             {isGameEnded && (
               <EmojiEventsIcon
-                color="primary"
+                color="secondary"
                 sx={{ fontSize: isMobile ? 50 : 60, mb: 1 }}
               />
             )}
@@ -324,7 +324,7 @@ const HangmanWaitingScreen = ({
             <Typography
               variant={isMobile ? "h5" : "h4"}
               component="h2"
-              sx={{ fontWeight: "bold", color: "primary.main" }}
+              sx={{ fontWeight: "bold", color: "secondary.main" }}
             >
               {isGameEnded
                 ? t("hangman.titleGameOver", "Oyun Bitti")
